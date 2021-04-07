@@ -2,6 +2,10 @@
 
 return [
 
+    'zap_api_version' => env('ZAP_API_VERSION', null),
+    'zap_access_token' => env('ZAP_ACCESS_TOKEN', ''),
+    'zap_api_endpoint' => env('ZAP_API_ENDPOINT', ''),
+
     /*
     |--------------------------------------------------------------------------
     | Application Name
@@ -175,6 +179,11 @@ return [
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
 
+        /*
+        * ZAP API Service Provider.
+        */
+        App\Providers\ZapApiProvider::class,
+
     ],
 
     /*
@@ -227,6 +236,11 @@ return [
         'URL' => Illuminate\Support\Facades\URL::class,
         'Validator' => Illuminate\Support\Facades\Validator::class,
         'View' => Illuminate\Support\Facades\View::class,
+
+        /*
+        * ZAP API Facade.
+        */
+        'ZAP' => App\ZAP\Facades\ZapApiFacade::class,
 
     ],
 

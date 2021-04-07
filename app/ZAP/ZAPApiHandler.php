@@ -1,6 +1,6 @@
 <?php
 
-namespace App\ZAP\Traits;
+namespace App\ZAP;
 
 use Illuminate\Support\Collection;
 use Throwable;

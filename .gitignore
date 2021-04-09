@@ -12,5 +12,3 @@ Homestead.yaml
 npm-debug.log
 yarn-error.log
 /laradock
-package-lock.json
-composer.lock

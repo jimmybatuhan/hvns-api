@@ -3,7 +3,7 @@
     <x-auth-validation-errors class="mb-4" :errors="$errors" />
     <form method="POST" action="{{ route('register') }}">
         @csrf
-        <!-- Name -->
+        <!-- First Name -->
         <div>
             <x-label for="first_name" value="First Name" />
             <x-input
@@ -14,6 +14,8 @@
                 required autofocus
             />
         </div>
+
+        <!-- Last Name -->
         <div class="mt-4">
             <x-label for="last_name" value="Last Name" />
             <x-input
@@ -24,6 +26,7 @@
                 required autofocus
             />
         </div>
+
         <!-- Email Address -->
         <div class="mt-4">
             <x-label for="email" :value="__('Email')" />
@@ -36,6 +39,20 @@
                 required
             />
         </div>
+
+        <!-- Phone  -->
+        <div class="mt-4">
+            <x-label for="phone" value="Phone No." />
+            <x-input
+                id="phone"
+                class="block mt-1 w-full"
+                type="text"
+                name="phone"
+                :value="old('phone')"
+                required
+            />
+        </div>
+
         <!-- Password -->
         <div class="mt-4">
             <x-label for="password" :value="__('Password')" />

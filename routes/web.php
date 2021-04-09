@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CustomerController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -17,8 +18,13 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth'])->name('dashboard');
+Route::get('signup', [CustomerController::class, 'register'])
+    ->name('signup');
+Route::post('register', [CustomerController::class, 'processRegistration'])
+    ->name('register');
 
-require __DIR__.'/auth.php';
+// Route::get('/dashboard', function () {
+//     return view('dashboard');
+// })->middleware(['auth'])->name('dashboard');
+
+//require __DIR__.'/auth.php';

@@ -5,14 +5,14 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
-class RegisterController extends Controller
+class CustomerController extends Controller
 {
-    public function registrationForm(): View
+    public function register(): View
     {
         return view('register');
     }
 
-    public function registerCustomer()
+    public function processRegistration()
     {
 
     }

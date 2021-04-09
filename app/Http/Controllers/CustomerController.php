@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\RegisterCustomer;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -12,8 +13,15 @@ class CustomerController extends Controller
         return view('register');
     }
 
-    public function processRegistration()
+    public function processRegistration(Request $request)
     {
-
+        $validated = $request->validate([
+            'first_name' => 'required',
+            'last_name' => 'required',
+            'email' => 'required|email',
+            'phone' => 'required',
+            'password' => 'required|confirmed',
+            'confirm_password' => 'required',
+        ]);
     }
 }

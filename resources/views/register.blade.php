@@ -1,8 +1,5 @@
 <x-guest-layout>
-    <!-- Validation Errors -->
-    <x-auth-validation-errors class="mb-4" :errors="$errors" />
     <form method="POST" action="{{ route('register') }}">
-        @csrf
         <!-- First Name -->
         <div class="mt-4">
             <x-label for="first_name" value="First Name" />
@@ -11,8 +8,13 @@
                 class="block mt-1 w-full"
                 type="text" name="first_name"
                 :value="old('first_name')"
-                required autofocus
+                required
             />
+            @if ($errors->has('first_name'))
+                <div class="mt-3 d-block text-sm text-red-600">
+                    {{ $errors->first('first_name') }}
+                </div>
+            @endif
         </div>
 
         <!-- Last Name -->
@@ -23,8 +25,13 @@
                 class="block mt-1 w-full"
                 type="text" name="last_name"
                 :value="old('last_name')"
-                required autofocus
+                required
             />
+            @if ($errors->has('last_name'))
+                <div class="mt-3 d-block text-sm text-red-600">
+                    {{ $errors->first('last_name') }}
+                </div>
+            @endif
         </div>
 
         <!-- Email Address -->
@@ -38,6 +45,11 @@
                 :value="old('email')"
                 required
             />
+            @if ($errors->has('email'))
+                <div class="mt-3 d-block text-sm text-red-600">
+                    {{ $errors->first('email') }}
+                </div>
+            @endif
         </div>
 
         <!-- Phone  -->
@@ -51,6 +63,11 @@
                 :value="old('phone')"
                 required
             />
+            @if ($errors->has('phone'))
+                <div class="mt-3 d-block text-sm text-red-600">
+                    {{ $errors->first('phone') }}
+                </div>
+            @endif
         </div>
 
         <!-- Password -->
@@ -63,6 +80,11 @@
                 name="password"
                 required autocomplete="new-password"
             />
+            @if ($errors->has('password'))
+                <div class="mt-3 d-block text-sm text-red-600">
+                    {{ $errors->first('password') }}
+                </div>
+            @endif
         </div>
 
         <!-- Confirm Password -->
@@ -76,8 +98,8 @@
             />
         </div>
 
-        <div class="flex items-center justify-end mt-4">
-            <x-button class="ml-4">
+        <div class="flex items-center justify-center mt-4">
+            <x-button class="ml-4 text-center">
                 {{ __('Register') }}
             </x-button>
         </div>

@@ -4,7 +4,7 @@
     <form method="POST" action="{{ route('register') }}">
         @csrf
         <!-- First Name -->
-        <div>
+        <div class="mt-4">
             <x-label for="first_name" value="First Name" />
             <x-input
                 id="first_name"

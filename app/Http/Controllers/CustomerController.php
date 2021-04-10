@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\RegisterCustomer;
+use App\Shopify\Facades\ShopifyAdmin;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 

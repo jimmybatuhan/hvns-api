@@ -6,7 +6,7 @@ use App\ZAP\Facades\ZapApiFacade;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\ServiceProvider;
 
-class ZapApiProvider extends ServiceProvider
+class ZapServiceProvider extends ServiceProvider
 {
     /**
      * Register services.

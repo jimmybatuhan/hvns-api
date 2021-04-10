@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'shopify_api_version' => env('SHOPIFY_API_VERSION', null),
+    'shopify_store_admin_url' => env('SHOPIFY_STORE_ADMIN_URL', ''),
+    'shopify_access_token' => env('SHOPIFY_ACCESS_TOKEN', ''),
 
     'zap_api_version' => env('ZAP_API_VERSION', null),
     'zap_access_token' => env('ZAP_ACCESS_TOKEN', ''),
@@ -182,8 +185,12 @@ return [
         /*
         * ZAP API Service Provider.
         */
-        App\Providers\ZapApiProvider::class,
+        App\Providers\ZapServiceProvider::class,
 
+        /*
+        * Shopify Admin Service Provider
+        */
+        App\Providers\ShopifyAdminServiceProvider::class,
     ],
 
     /*
@@ -242,6 +249,10 @@ return [
         */
         'ZAP' => App\ZAP\Facades\ZapApiFacade::class,
 
+        /*
+        * Shopify Admin Facade.
+        */
+        'ShopifyAdmin' => App\Shopify\Facades\ShopifyAdmin::class,
     ],
 
 ];

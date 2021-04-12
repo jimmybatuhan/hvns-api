@@ -20,7 +20,7 @@ Route::get('/', function () {
 
 Route::get('signup', [CustomerController::class, 'register'])
     ->name('signup');
-Route::post('signup', [CustomerController::class, 'processRegistration'])
+Route::post('signup', [CustomerController::class, 'postProcessRegistration'])
     ->name('register');
 
 // Route::get('/dashboard', function () {

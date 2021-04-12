@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Shopify\Facades\ShopifyAdmin;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 
 class CustomerController extends Controller
@@ -15,7 +17,7 @@ class CustomerController extends Controller
 
     public function processRegistration(Request $request)
     {
-        $validated = $request->validate([
+        $validator = Validator::make($request->all(), [
             'first_name' => 'required',
             'last_name' => 'required',
             'email' => 'required|email',
@@ -23,5 +25,9 @@ class CustomerController extends Controller
             'password' => 'required|confirmed',
             'confirm_password' => 'required',
         ]);
+
+        if($validator->fails()) {
+            return Redirect::back()->withErrors($validator)->withInput();
+        }
     }
 }

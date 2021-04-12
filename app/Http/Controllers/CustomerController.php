@@ -27,7 +27,9 @@ class CustomerController extends Controller
         ]);
 
         if($validator->fails()) {
-            return Redirect::back()->withErrors($validator)->withInput();
+
+            dd('failed validation');
+//            return Redirect::back()->withErrors($validator)->withInput();
         }
     }
 }

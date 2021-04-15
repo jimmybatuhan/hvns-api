@@ -34,7 +34,7 @@ Route::get('complete', function () {
     return view('register-complete');
 });
 
-Route::prefix('webhook')->middleware('shopify-verify-webhook')->group(function () {
+Route::prefix('shopify')->middleware('shopify-verify-webhook')->group(function () {
     Route::post('fulfill', [WebhookController::class, 'onOrderFulfilled']);
 });
 

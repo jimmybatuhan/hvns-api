@@ -23,6 +23,6 @@ class WebhookController extends Controller
 
         $total_points = number_format($sub_total * ZAP::getRewardPercentage(), 2);
 
-        dd(ZAP::addPoints($total_points, $mobile, $metafields));
+        ZAP::addPoints($total_points, $mobile, $metafields);
     }
 }

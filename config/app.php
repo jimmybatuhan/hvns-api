@@ -2,12 +2,14 @@
 
 return [
     'shopify_api_version' => env('SHOPIFY_API_VERSION', null),
-    'shopify_store_admin_url' => env('SHOPIFY_STORE_ADMIN_URL', ''),
+    'shopify_store_url' => env('SHOPIFY_STORE_URL', ''),
     'shopify_access_token' => env('SHOPIFY_ACCESS_TOKEN', ''),
 
     'zap_api_version' => env('ZAP_API_VERSION', null),
     'zap_access_token' => env('ZAP_ACCESS_TOKEN', ''),
     'zap_api_endpoint' => env('ZAP_API_ENDPOINT', ''),
+    'zap_branch_id' => env('ZAP_BRANCH_ID', ''),
+    'zap_merchant_id' => env('ZAP_MERCHANT_ID', ''),
 
     /*
     |--------------------------------------------------------------------------
@@ -20,7 +22,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+    'name' => env('APP_NAME', 'Havaianas Web Service'),
 
     /*
     |--------------------------------------------------------------------------
@@ -247,7 +249,7 @@ return [
         /*
         * ZAP API Facade.
         */
-        'ZAP' => App\ZAP\Facades\ZapApiFacade::class,
+        'ZAP' => App\ZAP\Facades\ZAP::class,
 
         /*
         * Shopify Admin Facade.

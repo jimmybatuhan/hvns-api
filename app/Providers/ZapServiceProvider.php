@@ -2,7 +2,7 @@
 
 namespace App\Providers;
 
-use App\ZAP\Facades\ZapApiFacade;
+use App\ZAP\ZAP;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\ServiceProvider;
 
@@ -16,7 +16,7 @@ class ZapServiceProvider extends ServiceProvider
     public function register()
     {
         App::bind('zap', function () {
-            return new ZapApiFacade;
+            return new ZAP;
         });
     }
 

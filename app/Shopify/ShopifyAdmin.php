@@ -3,46 +3,31 @@
 namespace App\Shopify;
 
 use Carbon\Carbon;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
 class ShopifyAdmin
 {
-
     private $api_version;
     private $admin_url;
     private $access_token;
-
-    private $customer_resource_url;
-    private $discount_resource_url;
-    private $price_rules_resource_url;
-
-    private $http_post;
-    private $http_get;
+    private $admin_api;
+    private $http;
 
     public function __construct()
     {
         $this->api_version = config('app.shopify_api_version');
         $this->admin_url = config('app.shopify_store_url');
         $this->access_token = config('app.shopify_access_token');
-
-        $admin_api = $this->admin_url . '/admin/api/' . $this->api_version;
-
-        $this->customer_search_resource_url = $admin_api . '/customers/search.json';
-        $this->customer_resource_url = $admin_api . '/customers.json';
-        $this->discount_resource_url = $admin_api . '/price_rules/{price_rule_id}/discount_codes.json';
-        $this->price_rules_resource_url = $admin_api . '/price_rules.json';
-
-        $default_headers = Http::withHeaders([
+        $this->admin_api = $this->admin_url . '/admin/api/' . $this->api_version;
+        $this->http = Http::withHeaders([
             'X-Shopify-Access-Token' => $this->access_token,
         ]);
-
-        $this->http_post = $default_headers;
-        $this->http_get = $default_headers;
     }
 
-    public function findCustomer(array $query): Collection
+    public function findCustomer(array $query): Response
     {
         $filters = collect($query)->map(function ($item, $key) {
             return "$key:$item";
@@ -50,10 +35,9 @@ class ShopifyAdmin
         // TODO add more 'connectives' in the query
         ->implode(" AND ");
 
-        return $this->http_get->get($this->customer_search_resource_url, [
+        return $this->http->get($this->customer_search_resource_url, [
             'query' => $filters,
-        ])
-        ->collect();
+        ]);
     }
 
     public function createCustomer(
@@ -62,8 +46,8 @@ class ShopifyAdmin
         string $email,
         string $phone,
         string $password
-    ): Collection {
-        return $this->http_post->post($this->customer_resource_url, [
+    ): Response {
+        return $this->http->post($this->admin_api . '/customers.json', [
             'customer' => [
                 'first_name' => $first_name,
                 'last_name' => $last_name,
@@ -73,13 +57,38 @@ class ShopifyAdmin
                 'password_confirmation' => $password,
                 'verified_email' => false,
             ],
-        ])
-        ->collect();
+        ]);
     }
 
-    public function createPriceRule(string $title, string $customer_id, string $amount): Collection
+    public function deleteCustomer(string $customer_id): Response
     {
-        return $this->http_post->post($this->price_rules_resource_url, [
+        return $this->http->delete($this->admin_api . "/customers/{$customer_id}.json");
+    }
+
+    public function addCustomerMetafield(
+        string $customer_id,
+        string $key,
+        string $value,
+        string $namespace
+    ): Response {
+        return $this->http->put($this->admin_api . "/customers/{$customer_id}.json", [
+            'customer' => [
+                'id' => $customer_id,
+                'metafields' => [
+                    [
+                        'key' => $key,
+                        'value' => $value,
+                        'namespace' => $namespace,
+                        'value_type' => 'string',
+                    ]
+                ],
+            ],
+        ]);
+    }
+
+    public function createPriceRule(string $title, string $customer_id, string $amount): Response
+    {
+        return $this->http->post($this->admin_api . '/price_rules.json', [
             'price_rule' => [
                 'title' => $title,
                 'target_type' => 'line_item',
@@ -93,19 +102,15 @@ class ShopifyAdmin
                 'customer_selection' => 'prerequisite',
                 'starts_at' => Carbon::now()->toISOString(),
             ],
-        ])
-        ->collect();
+        ]);
     }
 
-    public function createDiscountCode(string $price_rule_id, string $code): Collection
+    public function createDiscountCode(string $price_rule_id, string $code): Response
     {
-        $api_endpoint = Str::of($this->discount_resource_url)->replace('{price_rule_id}', $price_rule_id);
-
-        return $this->http_post->post($api_endpoint, [
+        return $this->http->post($this->admin_api . "/price_rules/{$price_rule_id}/discount_codes.json", [
             'discount_code' => [
                 'code' => $code,
             ],
-        ])
-        ->collect();
+        ]);
     }
 }

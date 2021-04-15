@@ -4,6 +4,7 @@ return [
     'shopify_api_version' => env('SHOPIFY_API_VERSION', null),
     'shopify_store_url' => env('SHOPIFY_STORE_URL', ''),
     'shopify_access_token' => env('SHOPIFY_ACCESS_TOKEN', ''),
+    'shopify_app_secret' => env('SHOPIFY_APP_SECRET', ''),
 
     'zap_api_version' => env('ZAP_API_VERSION', null),
     'zap_access_token' => env('ZAP_ACCESS_TOKEN', ''),

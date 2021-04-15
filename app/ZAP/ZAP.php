@@ -3,6 +3,7 @@
 namespace App\ZAP;
 
 use Carbon\Carbon;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 
@@ -17,6 +18,8 @@ class ZAP extends ZAPApiHandler
     public $api_version;
     public $merchant_id;
     public $branch_id;
+
+    private const ZAP_REWARD_PECENTAGE = 0.02; // 2%
 
     public function __construct()
     {
@@ -40,6 +43,11 @@ class ZAP extends ZAPApiHandler
         $this->http_get = $default_headers;
     }
 
+    public function getRewardPercentage(): float
+    {
+        return self::ZAP_REWARD_PECENTAGE;
+    }
+
     public function getAccessToken(): string
     {
         return config('app.zap_access_token');
@@ -53,7 +61,7 @@ class ZAP extends ZAPApiHandler
         string $gender,
         Carbon $birthday,
         bool $is_verified_email = true
-    ): Collection {
+    ): Response {
         $url = $this->api_endpoint . '/' . $this->api_version . '/register';
         return $this->http_post->post($url, [
             'mobileNumber' => $mobile_number,
@@ -64,10 +72,9 @@ class ZAP extends ZAPApiHandler
             'gender' => $gender,
             'birthday' => $birthday->format('Y-m-d'),
             'isVerifiedEmail' => $is_verified_email,
-        ])
+        ]);
         // TODO handle error response later on, focusing on the happy path first.
         // ->throw(fn ($response, $e) => self::handleHttpError($response, $e))
-        ->collect();
     }
 
     public function sendOTP(string $purpose, string $mobile_number, string $merchant_id): Collection
@@ -107,18 +114,21 @@ class ZAP extends ZAPApiHandler
         ->collect();
     }
 
-    public function earnPoints(
+    /**
+     *  Note: 'earn points' endpoint have a 48 hours clearng period, to achieve
+     *  a real time updating of points will use 'add points' endpoint instead.
+     */
+    public function addPoints(
         float $transaction_amount,
         string $mobile_number,
-        string $tag_uuid,
-        string $branch_id
+        string $metafields
     ): Collection {
-        $url = $this->api_endpoint . '/' . $this->api_version . '/transaction/earn';
+        $url = $this->api_endpoint . '/' . $this->api_version . '/transaction/add-points';
         return $this->http_post->post($url, [
-            'transactionAmount' => $transaction_amount,
+            'amount' => $transaction_amount,
             'mobileNumber' => $mobile_number,
-            'tagUuid' => $tag_uuid,
-            'branchId' => $branch_id,
+            'merchantId' => $this->merchant_id,
+            'comment' => $metafields
         ])
         // TODO handle error response later on, focusing on the happy path first.
         // ->throw(fn ($response, $e) => self::handleHttpError($response, $e))

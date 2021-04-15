@@ -19,22 +19,41 @@ class ShopifyAdmin
     private $price_rules_resource_url;
 
     private $http_post;
+    private $http_get;
 
     public function __construct()
     {
         $this->api_version = config('app.shopify_api_version');
-        $this->admin_url = config('app.shopify_store_admin_url');
+        $this->admin_url = config('app.shopify_store_url');
         $this->access_token = config('app.shopify_access_token');
 
         $admin_api = $this->admin_url . '/admin/api/' . $this->api_version;
 
+        $this->customer_search_resource_url = $admin_api . '/customers/search.json';
         $this->customer_resource_url = $admin_api . '/customers.json';
         $this->discount_resource_url = $admin_api . '/price_rules/{price_rule_id}/discount_codes.json';
         $this->price_rules_resource_url = $admin_api . '/price_rules.json';
 
-        $this->http_post = Http::withHeaders([
+        $default_headers = Http::withHeaders([
             'X-Shopify-Access-Token' => $this->access_token,
         ]);
+
+        $this->http_post = $default_headers;
+        $this->http_get = $default_headers;
+    }
+
+    public function findCustomer(array $query): Collection
+    {
+        $filters = collect($query)->map(function ($item, $key) {
+            return "$key:$item";
+        })
+        // TODO add more 'connectives' in the query
+        ->implode(" AND ");
+
+        return $this->http_get->get($this->customer_search_resource_url, [
+            'query' => $filters,
+        ])
+        ->collect();
     }
 
     public function createCustomer(

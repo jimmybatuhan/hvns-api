@@ -15,13 +15,22 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', function () {
-    return view('welcome');
+    abort(404);
 });
 
-Route::get('signup', [CustomerController::class, 'register'])
-    ->name('signup');
-Route::post('signup', [CustomerController::class, 'postProcessRegistration'])
-    ->name('register');
+Route::get('signup', [CustomerController::class, 'registerForm'])->name('signup');
+Route::post('signup', [CustomerController::class, 'postProcessRegistration'])->name('register');
+Route::post('verify-otp', [CustomerController::class, 'verifyOTP']);
+
+Route::prefix('member')->group(function () {
+    Route::get('data', [CustomerController::class, 'getZAPMemberData'])->name('zap-member-data');
+    Route::get('transactions', [CustomerController::class, 'getZAPMemberTransactions'])
+        ->name('zap-member-transactions');
+});
+
+Route::get('complete', function () {
+    return view('register-complete');
+});
 
 // Route::get('/dashboard', function () {
 //     return view('dashboard');

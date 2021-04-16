@@ -27,6 +27,40 @@ class ShopifyAdmin
         ]);
     }
 
+    public function addMetafieldsToResource(
+        string $resource,
+        string $id,
+        Collection $metafields
+    ): Response {
+        return $this->http->put($this->admin_api . "/{$resource}/{$id}.json", [
+            Str::singular($resource) => [
+                'id' => $id,
+                'metafields' => $metafields->map(function ($metafield) {
+                    $metafield['value_type'] = 'string';
+                    return $metafield;
+                })->toArray(),
+            ],
+        ]);
+    }
+
+    public function updateMetafieldById(
+        string $metafield_id,
+        string $value
+    ): Response {
+        return $this->http->put($this->admin_api . "/metafields/{$metafield_id}.json", [
+            'metafield' => [
+                'id' => $metafield_id,
+                'value' => $value,
+                'value_type' => 'string',
+            ]
+        ]);
+    }
+
+    public function retrieveMetafieldFromResource(string $id, string $resource): Response
+    {
+        return $this->http->get($this->admin_api . "/{$resource}/{$id}/metafields.json");
+    }
+
     public function findCustomer(array $query): Response
     {
         $filters = collect($query)->map(function ($item, $key) {
@@ -65,25 +99,9 @@ class ShopifyAdmin
         return $this->http->delete($this->admin_api . "/customers/{$customer_id}.json");
     }
 
-    public function addCustomerMetafield(
-        string $customer_id,
-        string $key,
-        string $value,
-        string $namespace
-    ): Response {
-        return $this->http->put($this->admin_api . "/customers/{$customer_id}.json", [
-            'customer' => [
-                'id' => $customer_id,
-                'metafields' => [
-                    [
-                        'key' => $key,
-                        'value' => $value,
-                        'namespace' => $namespace,
-                        'value_type' => 'string',
-                    ]
-                ],
-            ],
-        ]);
+    public function getOrderById(string $order_id): Response
+    {
+        return $this->http->get($this->admin_api . "/orders/{$order_id}.json");
     }
 
     public function createPriceRule(string $title, string $customer_id, string $amount): Response

@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Shopify\Constants as ShopifyConstants;
 use App\Shopify\Facades\ShopifyAdmin;
 use App\ZAP\Constants as ZAPConstants;
 use App\ZAP\Facades\ZAP;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ViewErrorBag;
@@ -17,6 +19,8 @@ class CustomerController extends Controller
 {
     public function registerForm(): View
     {
+        Log::info('test');
+
         return view('register');
     }
 
@@ -90,14 +94,18 @@ class CustomerController extends Controller
         });
 
         if (! $validator->fails()) {
-            // Add meta fields to the shopify customer
-            ShopifyAdmin::addCustomerMetafield(
+            /**
+             * Attach the member id  to the shopify customer resource
+             */
+            ShopifyAdmin::addMetafieldsToResource(
+                ShopifyConstants::CUSTOMER_RESOURCE,
                 $shopify_customer_id,
-                ZAPConstants::ZAP_MEMBER_ID,
-                $zap_member_id,
-                ZAPConstants::ZAP_METAFIELD_NAMESPACE
+                collect()->push([
+                    'key' => ZAPConstants::MEMBER_ID_KEY,
+                    'namespace' => ZAPConstants::MEMBER_NAMESPACE,
+                    'value' => $zap_member_id,
+                ])
             );
-
         } else {
             /**
              * Re render the register from with the errors, have to put the errors manually due to

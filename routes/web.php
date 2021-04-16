@@ -4,7 +4,6 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
-
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -30,14 +29,10 @@ Route::prefix('member')->group(function () {
         ->name('zap-member-transactions');
 });
 
-Route::get('complete', function () {
-    return view('register-complete');
-});
-
 Route::prefix('shopify')->middleware('shopify-verify-webhook')->group(function () {
     Route::post('fulfill', [WebhookController::class, 'onOrderFulfilled']);
+    Route::post('fulfillment-update', [WebhookController::class, 'onFulfillmentUpdate']);
 });
-
 
 // Route::get('/dashboard', function () {
 //     return view('dashboard');

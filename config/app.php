@@ -11,6 +11,7 @@ return [
     'zap_api_endpoint' => env('ZAP_API_ENDPOINT', ''),
     'zap_branch_id' => env('ZAP_BRANCH_ID', ''),
     'zap_merchant_id' => env('ZAP_MERCHANT_ID', ''),
+    'zap_location_id' => env('ZAP_LOCATION_ID', ''),
 
     /*
     |--------------------------------------------------------------------------

@@ -173,4 +173,16 @@ class ZAP extends ZAPApiHandler
         // TODO handle error response later on, focusing on the happy path first.
         // ->throw(fn ($response, $e) => self::handleHttpError($response, $e))
     }
+
+    public function inquireBalance(string $mobile_number)
+    {
+        $url = $this->api_endpoint . '/' . $this->api_version . '/user/balance/inquiry';
+        return $this->http->post($url, [
+            'mobileNumber' => $mobile_number,
+            'branchId' => $this->branch_id,
+        ])
+        // TODO handle error response later on, focusing on the happy path first.
+        // ->throw(fn ($response, $e) => self::handleHttpError($response, $e))
+       ->collect();
+    }
 }

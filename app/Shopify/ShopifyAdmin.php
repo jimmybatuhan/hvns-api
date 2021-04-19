@@ -134,7 +134,6 @@ class ShopifyAdmin
 
     public function getDiscountCode(string $code): Response
     {
-        // echo var_dump($this->admin_api . "/discount_codes/lookup.json?code={$code}");
         return $this->http->get($this->admin_api . "/discount_codes/lookup.json?code={$code}");
     }
 
@@ -152,5 +151,4 @@ class ShopifyAdmin
             ],
         ]);
     }
-
 }

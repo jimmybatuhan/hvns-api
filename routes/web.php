@@ -35,7 +35,7 @@ Route::prefix('shopify')->middleware('shopify-verify-webhook')->group(function (
     Route::post('fulfillment-update', [WebhookController::class, 'onFulfillmentUpdate']);
 });
 
-Route::post('discount-code', [DiscountController::class, 'generateDiscountCode']);
+Route::middleware('cors')->post('discount-code', [DiscountController::class, 'generateDiscountCode']);
 
 // Route::get('/dashboard', function () {
 //     return view('dashboard');

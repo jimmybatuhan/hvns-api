@@ -55,6 +55,7 @@ class WebhookController extends Controller
     {
         // TODO validate duplicate orders
         $body = $request->all();
+        // TODO check if the customer index exists
         $customer = $body['customer'];
         $sub_total = (float) $body['current_subtotal_price'];
         $metafields = collect([

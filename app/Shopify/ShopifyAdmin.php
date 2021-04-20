@@ -131,4 +131,24 @@ class ShopifyAdmin
             ],
         ]);
     }
+
+    public function getDiscountCode(string $code): Response
+    {
+        return $this->http->get($this->admin_api . "/discount_codes/lookup.json?code={$code}");
+    }
+
+    public function getPriceRule(string $price_rule_id): Response
+    {
+        return $this->http->get($this->admin_api . "/price_rules/{$price_rule_id}.json");
+    }
+
+    public function updatePriceRuleAmount(string $price_rule_id, string $amount): Response
+    {
+        return $this->http->put($this->admin_api . "/price_rules/{$price_rule_id}.json", [
+            'price_rule' => [
+                'id' => $price_rule_id,
+                'value' => $amount,
+            ],
+        ]);
+    }
 }

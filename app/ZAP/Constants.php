@@ -4,6 +4,8 @@ namespace App\ZAP;
 
 class Constants
 {
+    public const DISCOUNT_PREFIX = 'ZAP_POINTS';
+
     public const NOT_FOUND = '404-00';
     public const EMAIL_ALREADY_EXISTS = '409-03';
     public const MOBILE_ALREADY_EXISTS = '400-04';

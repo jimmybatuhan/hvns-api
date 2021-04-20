@@ -1,8 +1,8 @@
 <?php
 
 use App\Http\Controllers\CustomerController;
-use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\DiscountController;
+use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -35,7 +35,7 @@ Route::prefix('shopify')->middleware('shopify-verify-webhook')->group(function (
     Route::post('fulfillment-update', [WebhookController::class, 'onFulfillmentUpdate']);
 });
 
-Route::get('discount-code', [DiscountController::class, 'generateDiscountCode']);
+Route::post('discount-code', [DiscountController::class, 'generateDiscountCode']);
 
 // Route::get('/dashboard', function () {
 //     return view('dashboard');

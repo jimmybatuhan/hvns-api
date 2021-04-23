@@ -2,6 +2,7 @@
 
 namespace App\Shopify;
 
+use App\Shopify\Mixins\MetafieldMixin;
 use Carbon\Carbon;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Collection;
@@ -56,8 +57,10 @@ class ShopifyAdmin
         ]);
     }
 
-    public function retrieveMetafieldFromResource(string $id, string $resource): Response
+    public function fetchMetafield(string $id, string $resource): Response
     {
+        Response::mixin(new MetafieldMixin());
+
         return $this->http->get($this->admin_api . "/{$resource}/{$id}/metafields.json");
     }
 

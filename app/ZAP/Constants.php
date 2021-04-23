@@ -4,6 +4,8 @@ namespace App\ZAP;
 
 class Constants
 {
+    public const ZAP_REWARD_PECENTAGE = 0.02; // 2%
+
     public const DISCOUNT_PREFIX = 'ZAP_POINTS';
 
     public const NOT_FOUND = '404-00';

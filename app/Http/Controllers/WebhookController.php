@@ -4,97 +4,138 @@ namespace App\Http\Controllers;
 
 use App\Shopify\Constants as ShopifyConstants;
 use App\Shopify\Facades\ShopifyAdmin;
+use App\ShopPromo\Facades\ShopPromo;
 use App\ZAP\Constants as ZAPConstants;
 use App\ZAP\Facades\ZAP;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
 use Symfony\Component\HttpFoundation\Response;
 
 class WebhookController extends Controller
 {
     public function onFulfillmentUpdate(Request $request): JsonResponse
     {
+        $response_status = Response::HTTP_OK;
+        $success = true;
         $body = $request->all();
         $order_id = $body['order_id'];
         $fulfillment_status = $body['status'];
-        $shopify_response = ShopifyAdmin::getOrderById($order_id);
-        $order_resource = $shopify_response->collect();
-        $customer = $order_resource['order']['customer'];
 
-        $shopify_response = ShopifyAdmin::retrieveMetafieldFromResource(
+        $shopify_response = ShopifyAdmin::fetchMetafield(
             $order_id,
             ShopifyConstants::ORDER_RESOURCE
         );
 
-        $zap_transaction_metafields = $shopify_response->collect()['metafields'];
-        $zap_transaction_status = Arr::first($zap_transaction_metafields, fn ($metafield) =>
-            $metafield['namespace'] === ZAPConstants::TRANSACTION_NAMESPACE &&
-            $metafield['key'] === ZAPConstants::TRANSACTION_STATUS_KEY
-        );
-        $calculated_points = Arr::first($zap_transaction_metafields, fn ($metafield) =>
-            $metafield['namespace'] === ZAPConstants::TRANSACTION_NAMESPACE &&
-            $metafield['key'] === ZAPConstants::TRANSACTION_POINTS_KEY
-        );
+        if ($shopify_response->ok()) {
+            $transaction_reference_no = $shopify_response->metafield(
+                ZAPConstants::TRANSACTION_NAMESPACE,
+                ZAPConstants::TRANSACTION_REFERENCE_KEY,
+                ShopifyConstants::METAFIELD_INDEX_VALUE
+            );
+            $transaction_status_meta_id = $shopify_response->metafield(
+                ZAPConstants::TRANSACTION_NAMESPACE,
+                ZAPConstants::TRANSACTION_STATUS_KEY,
+                ShopifyConstants::METAFIELD_INDEX_ID
+            );
 
-        if ($fulfillment_status === ShopifyConstants::FULFILLMENT_CANCELLED) {
-            ZAP::deductPoints(
-                $calculated_points['value'],
-                preg_replace('/([^\d])/', '', $customer['phone'])
-            );
-            ShopifyAdmin::updateMetafieldById(
-                $zap_transaction_status['id'],
-                ZAPConstants::TRANSACTION_STATUS_VOIDED
-            );
+            /**
+             * Revoke points earned if the fulfillment has been cancelled
+             */
+            if ($fulfillment_status === ShopifyConstants::FULFILLMENT_CANCELLED) {
+                if (ZAP::voidTransaction($transaction_reference_no)->ok()) {
+                    $shopify_update_response = ShopifyAdmin::updateMetafieldById(
+                        $transaction_status_meta_id,
+                        ZAPConstants::TRANSACTION_STATUS_VOIDED
+                    );
+                    if (! $shopify_update_response->ok()) {
+                        $response_status = Response::HTTP_INTERNAL_SERVER_ERROR;
+                        $success = false;
+                    }
+                } else {
+                    $response_status = Response::HTTP_INTERNAL_SERVER_ERROR;
+                    $success = false;
+                }
+            }
+        } else {
+            $response_status = Response::HTTP_INTERNAL_SERVER_ERROR;
+            $success = false;
         }
 
-        return response()->json(['success' => true], Response::HTTP_OK);
+        return response()->json(['success' => $success], $response_status);
     }
 
     public function onOrderFulfilled(Request $request): JsonResponse
     {
-        // TODO validate duplicate orders
+        $success = true;
+        $status = Response::HTTP_OK;
         $body = $request->all();
-        // TODO check if the customer index exists
         $customer = $body['customer'];
-        $sub_total = (float) $body['current_subtotal_price'];
-        $metafields = collect([
-            'orderId' => $body['id'],
-            'sub_total' => $sub_total,
-        ]);
+        $line_items = collect($body['line_items']);
 
-        // remove special characters (ex. (+00)000-000-0000 -> 0000000000)
-        $mobile = preg_replace('/([^\d])/', '', $customer['phone']);
+        if ($customer) {
+            // remove special characters (ex. (+00)000-000-0000 -> 0000000000)
+            $mobile = preg_replace('/([^\d])/', '', $customer['phone']);
+            $customer_id = $customer['id'];
+            $shopify_response = ShopifyAdmin::fetchMetafield($customer_id, ShopifyConstants::CUSTOMER_RESOURCE);
+            $customer_member_id = $shopify_response->metafield(
+                ZAPConstants::MEMBER_NAMESPACE,
+                ZAPConstants::MEMBER_ID_KEY,
+                ShopifyConstants::METAFIELD_INDEX_VALUE
+            );
 
-        // JODO validate if the mobile number is a ZAP member
-        // TODO handle ZAP response
-        $calculated_points = ZAP::calculatePoints($sub_total);
-        $zap_response = ZAP::addPoints($calculated_points, $mobile, $metafields->toJson());
-        $zap_response_body = $zap_response->collect();
+            // if customer has a member id from ZAP, this means we should add a point in its account
+            if ($customer_member_id) {
+                $metafields = collect([
+                    'order_id' => $body['id'],
+                    'sub_total' => (float) $body['current_subtotal_price'],
+                ]);
+                $total_points = $line_items
+                    ->map(fn (array $item) => ShopPromo::calculatePoints(
+                        $item['sku'],
+                        $item['quantity'],
+                        floatval($item['price']
+                    )))
+                    ->sum();
+                $zap_response = ZAP::addPoints($total_points, $mobile, $metafields->toJson());
 
-        // TODO handle Shopify response
-        // attach the ZAP refId to the order resource
-        ShopifyAdmin::addMetafieldsToResource(
-            ShopifyConstants::ORDER_RESOURCE,
-            $metafields['orderId'],
-            collect()
-                ->push([
-                    'key' => ZAPConstants::TRANSACTION_REFERENCE_KEY,
-                    'value' =>$zap_response_body['data']['refNo'],
-                    'namespace' => ZAPConstants::TRANSACTION_NAMESPACE,
-                ])
-                ->push([
-                    'key' => ZAPConstants::TRANSACTION_STATUS_KEY,
-                    'value' => ZAPConstants::TRANSACTION_STATUS_CLEARED,
-                    'namespace' => ZAPConstants::TRANSACTION_NAMESPACE,
-                ])
-                ->push([
-                    'key' => ZAPConstants::TRANSACTION_POINTS_KEY,
-                    'value' => $calculated_points,
-                    'namespace' => ZAPConstants::TRANSACTION_NAMESPACE,
-                ])
-        );
+                if ($zap_response->ok()) {
+                    $zap_response_body = $zap_response->collect();
+                    $shopify_response = ShopifyAdmin::addMetafieldsToResource(
+                        ShopifyConstants::ORDER_RESOURCE,
+                        $metafields['order_id'],
+                        collect()
+                            ->push([
+                                'key' => ZAPConstants::TRANSACTION_REFERENCE_KEY,
+                                'value' =>$zap_response_body['data']['refNo'],
+                                'namespace' => ZAPConstants::TRANSACTION_NAMESPACE,
+                            ])
+                            ->push([
+                                'key' => ZAPConstants::TRANSACTION_STATUS_KEY,
+                                'value' => ZAPConstants::TRANSACTION_STATUS_CLEARED,
+                                'namespace' => ZAPConstants::TRANSACTION_NAMESPACE,
+                            ])
+                            ->push([
+                                'key' => ZAPConstants::TRANSACTION_POINTS_KEY,
+                                'value' => $total_points,
+                                'namespace' => ZAPConstants::TRANSACTION_NAMESPACE,
+                            ])
+                    );
 
-        return response()->json(['success' => true], Response::HTTP_OK);
+                    if ($shopify_response->failed()) {
+                        // Log error here
+                        $success = false;
+                        $status = Response::HTTP_INTERNAL_SERVER_ERROR;
+                    }
+                } else {
+                    // Log error here
+                    $success = false;
+                    $status = Response::HTTP_INTERNAL_SERVER_ERROR;
+                }
+            } else {
+                // Log warning here, but return a success response
+            }
+        }
+
+        return response()->json(['success' => $success], $status);
     }
 }

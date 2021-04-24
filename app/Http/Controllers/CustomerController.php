@@ -120,6 +120,140 @@ class CustomerController extends Controller
         return $view;
     }
 
+    public function updateForm(Request $request): View
+    {
+
+        $viewData = [];
+
+        $validator = Validator::make($request->all(), [
+            'shopify_customer_id' => 'required|bail',
+        ]);
+
+        if (! $validator->fails()) {
+
+            $customerData = $this->getCustomerData($request);
+            return view('update', $customerData);
+
+        }else{
+            abort(404);
+        }
+    }
+
+    private function getCustomerData(Request $request): Array
+    {
+        $customerData = [];
+
+        $shopifyCustomerResp = ShopifyAdmin::getCustomer($request->shopify_customer_id);
+
+        if(!$shopifyCustomerResp->serverError()){
+            if ($shopifyCustomerResp->status() === Response::HTTP_NOT_FOUND) {
+                $customerData = [
+                    'success' => false,
+                    'message' => 'Shopify Customer does not exist'
+                ];
+            }else{
+
+                $shopifyCustomerData = $shopifyCustomerResp->collect();
+                $zapMembershipResp = ZAP::getMembershipData(substr($shopifyCustomerData['customer']['phone'], 1));
+
+                if (!$zapMembershipResp->failed()) {
+                    $zapMembershipData = $zapMembershipResp->collect();
+
+                    $customerData = [
+                        'success' => true,
+                        'customer' => [
+                            'shopify_customer_id' => $request->shopify_customer_id,
+                            'first_name' => $shopifyCustomerData['customer']['first_name'],
+                            'last_name' => $shopifyCustomerData['customer']['last_name'],
+                            'email' => $shopifyCustomerData['customer']['email'],
+                            'phone' => $shopifyCustomerData['customer']['phone'],
+                            'birthday' => $zapMembershipData['data']['birthday'],
+                            'gender' => ucwords($zapMembershipData['data']['gender']),
+                        ]
+                    ];
+                }else{
+                    $customerData = [
+                        'success' => false,
+                        'message' => 'Zap Customer does not exist'
+                    ];
+                }
+            }
+        }else{
+            $customerData = [
+                'success' => false,
+                'message' => 'Shopify Customer does not exist'
+            ];
+        }
+
+        return $customerData;
+    }
+
+    public function postProcessUpdate(Request $request)
+    {
+        $shopify_customer_id = null;
+        $zap_member_id = null;
+
+        //TODO update to the correct url
+        $view = Redirect::to(config('app.shopify_store_url') . '/account/update');
+
+        $validator = Validator::make($request->all(), [
+            'shopify_customer_id' => 'required|bail',
+            'first_name' => 'required|bail',
+            'last_name' => 'required|bail',
+            'email' => 'required|email|bail',
+            'gender' => 'required|in:Male,Female|bail',
+            'birthday' => 'required|date|bail',
+            'mobile' => 'required|bail',
+        ]);
+
+        $oldCustomerData = $this->getCustomerData($request);
+
+        $validator->after(function ($validator) use ($request, $oldCustomerData) {
+            if($oldCustomerData['success']){
+                $shopify_response = ShopifyAdmin::updateCustomer(
+                    $request->shopify_customer_id,
+                    $request->first_name,
+                    $request->last_name,
+                    $request->email,
+                    $request->mobile
+                );
+
+                if (!$shopify_response->failed()) {
+                    //TODO Add Shopify Update once OTP Process is confirmed
+
+                    // $zap_response = ZAP::updateMember(
+                    //     $request->mobile
+                    //     $request->first_name,
+                    //     $request->last_name,
+                    //     $request->email,
+                    //     $request->gender,
+                    //     $request->birthday,
+                    // );
+
+                    // if ($zap_response->failed()) {
+                    //     $validator->errors()->add('shopify_customer_id', 'Zap Customer failed to update');
+                    // }
+
+                } else {
+                    $validator->errors()->add('shopify_customer_id', 'Shopify Customer failed to update');
+                }
+
+            }else{
+                $validator->errors()->add('shopify_customer_id', 'Shopify Customer does not exist');
+            }
+        });
+
+        if ($validator->fails()) {
+            $view = view('update', [
+                'customer' => $oldCustomerData,
+                'errors' => (new ViewErrorBag())->put('default', $validator->getMessageBag()),
+                'inputs' => $request->all(),
+            ]);
+        }
+
+        return $view;
+    }
+
     public function verifyOTP(Request $request)
     {
         $validator = Validator::make($request->all(), [

@@ -181,4 +181,32 @@ class ZAP extends ZAPApiHandler
             'branchId' => $this->branch_id,
         ]);
     }
+
+    public function updateMember(
+        string $mobile_number,
+        string $first_name,
+        string $last_name,
+        string $email,
+        string $gender,
+        Carbon $birthday
+    ): Response {
+        return $this->http->post($this->api_url . '/membership/update', [
+            'mobileNumber' => $mobile_number,
+            'branchId' => $this->branch_id,
+            //TODO update OTP process
+            'otp' => [
+                'refId' => "2469436847",
+                'code' => "6721"
+            ],
+            'membership' => [
+                'firstName' => $first_name,
+                'lastName' => $last_name,
+                'email' => $email,
+                'birthday' => $birthday->format('Y-m-d'),
+                'gender' => $gender,
+            ]
+        ]);
+        // TODO handle error response later on, focusing on the happy path first.
+        // ->throw(fn ($response, $e) => self::handleHttpError($response, $e))
+    }
 }

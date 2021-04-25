@@ -70,11 +70,11 @@ class ZAP extends ZAPApiHandler
         // ->throw(fn ($response, $e) => self::handleHttpError($response, $e))
     }
 
-    public function sendOTP(string $purpose, string $mobile_number, string $merchant_id): Response
+    public function sendOTP(string $purpose, string $mobile_number): Response
     {
         return $this->http->post($this->api_url . '/otp/send/' . $purpose, [
             'mobileNumber' => $mobile_number,
-            'merchantId' => $merchant_id,
+            'merchantId' => $this->merchant_id,
         ]);
         // TODO handle error response later on, focusing on the happy path first.
         // ->throw(fn ($response, $e) => self::handleHttpError($response, $e))
@@ -180,5 +180,41 @@ class ZAP extends ZAPApiHandler
             'mobileNumber' => $mobile_number,
             'branchId' => $this->branch_id,
         ]);
+    }
+
+    public function updateMember(
+        string $mobile_number,
+        string $first_name,
+        string $last_name,
+        string $email,
+        string $gender,
+        Carbon $birthday,
+        string $otp_ref,
+        string $otp_code
+    ): Response {
+
+        $membership_data = [
+            'firstName' => $first_name,
+            'lastName' => $last_name,
+            'birthday' => $birthday->format('Y-m-d'),
+            'gender' => $gender,
+        ];
+
+        if ($email !== '') {
+            $membership_data['email'] = $email;
+        }
+
+        return $this->http->post($this->api_url . '/membership/update', [
+            'mobileNumber' => $mobile_number,
+            'merchantId' => $this->merchant_id,
+            'branchId' => $this->branch_id,
+            "otp" => [
+                "refId" => $otp_ref,
+                "code" => $otp_code
+            ],
+            'membership' => $membership_data
+        ]);
+        // TODO handle error response later on, focusing on the happy path first.
+        // ->throw(fn ($response, $e) => self::handleHttpError($response, $e))
     }
 }

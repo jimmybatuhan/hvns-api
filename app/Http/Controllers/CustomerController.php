@@ -7,6 +7,7 @@ use App\Shopify\Facades\ShopifyAdmin;
 use App\ZAP\Constants as ZAPConstants;
 use App\ZAP\Facades\ZAP;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
@@ -105,6 +106,16 @@ class CustomerController extends Controller
                     'namespace' => ZAPConstants::MEMBER_NAMESPACE,
                     'value' => $zap_member_id,
                 ])
+                ->push([
+                    'key' => ZAPConstants::MEMBER_BIRTHDAY_KEY,
+                    'namespace' => ZAPConstants::MEMBER_NAMESPACE,
+                    'value' => new Carbon($request->birthday),
+                ])
+                ->push([
+                    'key' => ZAPConstants::MEMBER_GENDER_KEY,
+                    'namespace' => ZAPConstants::MEMBER_NAMESPACE,
+                    'value' => $request->gender,
+                ])
             );
         } else {
             /**
@@ -118,6 +129,198 @@ class CustomerController extends Controller
         }
 
         return $view;
+    }
+
+    public function postProcessUpdate(Request $request): JSONResponse
+    {
+        $response = [];
+        $customer_data = [];
+
+        $validator = Validator::make($request->all(), [
+            'shopify_customer_id' => ['required', 'bail', function ($attribute, $value, $fail) use (&$customer_data){
+                $customer_data = $this->getCustomerData( $value );
+                if(! $customer_data['success']){
+                    $fail( $customer_data['error'] );
+                }
+            }],
+            'first_name' => 'required|bail',
+            'last_name' => 'required|bail',
+            'email' => 'required|email|bail',
+            'gender' => 'required|in:Male,Female|bail',
+            'gender_metafield_id' => 'required|bail',
+            'birthday' => 'required|date|bail',
+            'birthday_metafield_id' => 'required|bail',
+            'mobile' => 'required|bail',
+            'otp_ref' => 'required|bail',
+            'otp_code' => 'required|bail',
+        ]);
+
+        if (! $validator->fails()) {
+
+            $shopify_response = ShopifyAdmin::updateCustomer(
+                $request->shopify_customer_id,
+                $request->first_name,
+                $request->last_name,
+                $request->email,
+                $request->mobile
+            );
+
+            if (!$shopify_response->failed()) {
+
+
+                //TODO Batch Update of Metafields
+                ShopifyAdmin::updateMetafieldById(
+                    $request->birthday_metafield_id,
+                    $request->birthday
+                );
+
+                ShopifyAdmin::updateMetafieldById(
+                    $request->gender_metafield_id,
+                    $request->gender
+                );
+
+                $zap_response = ZAP::updateMember(
+                    substr( $request->mobile, 1 ),
+                    $request->first_name,
+                    $request->last_name,
+                    $customer_data['customer']['email'] !== $request->email ? $request->email : '',
+                    $request->gender,
+                    new Carbon($request->birthday),
+                    $request->otp_ref,
+                    $request->otp_code,
+                );
+
+                $zap_data = $zap_response->collect();
+
+                if ($zap_response->failed()) {
+                    if ($zap_data['error'] == 'Unauthorized') {
+                        $response = [
+                            'success' => false,
+                            'errors' => [
+                                'otp_code' => [
+                                    'OTP Code Incorrect'
+                                ]
+                            ]
+                        ];
+                    } else {
+                        $response = [
+                            'success' => false,
+                            'errors' => [
+                                'message' => [
+                                    'ZAP Customer failed to update'
+                                ]
+                            ]
+                        ];
+                    }
+                } else {
+                    $response = [
+                        'success' => true,
+                        'message' => 'Customer Updated'
+                    ];
+                }
+
+            } else {
+                $response = [
+                    'success' => false,
+                    'errors' => [
+                        'message' => [
+                            'Shopify Customer failed to update'
+                        ]
+                    ]
+                ];
+            }
+
+        } else {
+            $response = [
+                'success' => false,
+                'errors' => $validator->errors(),
+            ];
+        }
+
+        return response()->json($response);
+    }
+
+    private function getCustomerData(string $shopify_customer_id): array
+    {
+        $customer_data_resp = [];
+        $shopify_customer_resp = ShopifyAdmin::getCustomerById($shopify_customer_id);
+
+        if (! $shopify_customer_resp->serverError()){
+            if ($shopify_customer_resp->status() === Response::HTTP_NOT_FOUND) {
+                $customer_data_resp = [
+                    'success' => false,
+                    'error' => 'Shopify user does not exist'
+                ];
+            } else {
+                $shopify_customer_data = $shopify_customer_resp->collect();
+                $zap_membership_resp = ZAP::getMembershipData(substr($shopify_customer_data['customer']['phone'], 1));
+
+                switch ($zap_membership_resp->status()) {
+                    case Response::HTTP_NOT_FOUND:
+                        $customer_data_resp = [
+                            'success' => false,
+                            'error' => 'Zap Customer does not exist'
+                        ];
+                        break;
+                    case Response::HTTP_UNAUTHORIZED:
+                        $customer_data_resp = [
+                            'success' => false,
+                            'error' => 'Unauthorized'
+                        ];
+                        break;
+                    case Response::HTTP_OK:
+                        $customer_data_resp = [
+                            'success' => true,
+                            'customer' => [
+                                'email' => $shopify_customer_data['customer']['email']
+                            ]
+                        ];
+                        break;
+                    default:
+                        $customer_data_resp = [
+                            'success' => false,
+                            'error' => 'Unexpected Error'
+                        ];
+                        break;
+                }
+            }
+        } else {
+            $customer_data_resp = [
+                'success' => false,
+                'error' => 'Unexpected Error'
+            ];
+        }
+
+        return $customer_data_resp;
+    }
+
+    public function requestUpdateOTP(Request $request): JSONResponse
+    {
+        $resp = [];
+
+        $validator = Validator::make($request->all(), [
+            'mobile' => 'required',
+        ]);
+
+        if (! $validator->fails()) {
+            $zap_resp = ZAP::sendOTP(
+                ZAPConstants::OTP_PURPOSE_MEMBERSHIP_UPDATE,
+                substr($request->mobile, 1)
+            );
+            $otp_data = $zap_resp->collect();
+            $resp = [
+                'success' => true,
+                'otp_ref_id' => $otp_data['data']['refId'],
+            ];
+
+        } else {
+            $resp = [
+                'success' => false,
+                'errors' => $validator->getMessageBag(),
+            ];
+        }
+
+        return response()->json($resp);
     }
 
     public function verifyOTP(Request $request)

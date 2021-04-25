@@ -29,12 +29,6 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
 
-        $this->checkConfigs();
-
-    }
-
-    private function checkConfigs(){
-
         throw_if(empty(config('app.shopify_api_version')), 'RuntimeException', 'Shopify API Version is not set on the env file.');
         throw_if(empty(config('app.shopify_store_url')), 'RuntimeException', 'Shopify Store URL is not set on the env file.');
         throw_if(empty(config('app.shopify_access_token')), 'RuntimeException', 'Shopify Store URL is not set on the env file.');
@@ -48,4 +42,5 @@ class AppServiceProvider extends ServiceProvider
         throw_if(empty(config('app.zap_location_id')), 'RuntimeException', 'ZAP Location ID is not set on the env file.');
 
     }
+
 }

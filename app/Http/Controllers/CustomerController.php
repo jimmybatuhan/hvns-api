@@ -137,17 +137,19 @@ class CustomerController extends Controller
         $customer_data = [];
 
         $validator = Validator::make($request->all(), [
-            'shopify_customer_id' => ['required', 'bail', function($attribute, $value, $fail) use(&$customer_data){
-                $customer_data = $this->getCustomerData($value);
+            'shopify_customer_id' => ['required', 'bail', function( $attribute, $value, $fail ) use( &$customer_data ){
+                $customer_data = $this->getCustomerData( $value );
                 if(! $customer_data['success']){
-                    $fail('shopify/zap customer does not exist');
+                    $fail( $customer_data['error'] );
                 }
             }],
             'first_name' => 'required|bail',
             'last_name' => 'required|bail',
             'email' => 'required|email|bail',
             'gender' => 'required|in:Male,Female|bail',
+            'gender_metafield_id' => 'required|bail',
             'birthday' => 'required|date|bail',
+            'birthday_metafield_id' => 'required|bail',
             'mobile' => 'required|bail',
             'otp_ref' => 'required|bail',
             'otp_code' => 'required|bail',
@@ -164,23 +166,19 @@ class CustomerController extends Controller
             );
 
             if (!$shopify_response->failed()) {
-                //update birthday metafields
 
                 ShopifyAdmin::updateMetafieldById(
-                    $customer_data['customer']['metafields']['birthday']['id'],
+                    $request->birthday_metafield_id,
                     $request->birthday
                 );
 
                 ShopifyAdmin::updateMetafieldById(
-                    $customer_data['customer']['metafields']['gender']['id'],
+                    $request->gender_metafield_id,
                     $request->gender
                 );
 
-
-                //TODO Add Shopify Update once OTP Process is confirmed
-
                 $zap_response = ZAP::updateMember(
-                    substr($request->mobile, 1),
+                    substr( $request->mobile, 1 ),
                     $request->first_name,
                     $request->last_name,
                     $customer_data['customer']['email'] !== $request->email ? $request->email : '',
@@ -231,7 +229,6 @@ class CustomerController extends Controller
             }
 
         }else{
-
             $response = [
                 'success' => false,
                 'errors' => $validator->errors(),
@@ -241,62 +238,45 @@ class CustomerController extends Controller
         return response()->json($response);
     }
 
-
-    private function getCustomerData(String $shopify_customer_id): Array
+    private function getCustomerData(String $shopify_customer_id): array
     {
-        $shopify_customer_resp = ShopifyAdmin::getCustomer($shopify_customer_id);
 
-        if (! $shopify_customer_resp->serverError()){
-            if ($shopify_customer_resp->status() === Response::HTTP_NOT_FOUND) {
-                return [
+        $customer_data_resp = [];
+        $shopify_customer_resp = ShopifyAdmin::getCustomer( $shopify_customer_id );
+
+        if(! $shopify_customer_resp->serverError()){
+            if($shopify_customer_resp->status() === Response::HTTP_NOT_FOUND) {
+                $customer_data_resp = [
                     'success' => false,
+                    'error' => 'Shopify user does not exist'
                 ];
             }else{
-
                 $shopify_customer_data = $shopify_customer_resp->collect();
-                $shopify_customer_metafields_resp = ShopifyAdmin::retrieveMetafieldFromResource($shopify_customer_id, 'customers');
+                $zap_membership_resp = ZAP::getMembershipData( substr( $shopify_customer_data['customer']['phone'], 1 ) );
 
-                if (! $shopify_customer_metafields_resp->failed()) {
-
-                    $customer_metafield = [];
-                    $shopify_customer_metafields_data = $shopify_customer_metafields_resp->collect();
-
-                    foreach ($shopify_customer_metafields_data['metafields'] as $i => $field) {
-                        switch ($field['key']) {
-                            case ZAPConstants::MEMBER_BIRTHDAY_KEY:
-                                $customer_metafield['birthday'] = [
-                                    'id' => $field['id'],
-                                ];
-                                break;
-                            case ZAPConstants::MEMBER_GENDER_KEY:
-                                $customer_metafield['gender'] = [
-                                    'id' => $field['id'],
-                                ];
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-
-                    return [
+                if(! $zap_membership_resp->failed()) {
+                    $customer_data_resp = [
                         'success' => true,
                         'customer' => [
-                            'email' => $shopify_customer_data['customer']['email'],
-                            'metafields' => $customer_metafield,
+                            'email' => $shopify_customer_data['customer']['email']
                         ]
                     ];
-
                 }else{
-                    return [
+                    $customer_data_resp = [
                         'success' => false,
+                        'error' => 'Zap Customer does not exist'
                     ];
                 }
+
             }
         }else{
-            return [
+            $customer_data_resp = [
                 'success' => false,
+                'error' => 'Shopify user does not exist'
             ];
         }
+
+        return $customer_data_resp;
     }
 
     public function requestUpdateOTP(Request $request): JSONResponse
@@ -309,7 +289,7 @@ class CustomerController extends Controller
 
         if (! $validator->fails()) {
             $zap_resp = ZAP::sendOTP(
-                "API_UPDATE_MEMBERSHIP",
+                ZAPConstants::OTP_PURPOSE_MEMBERSHIP_UPDATE,
                 substr($request->mobile, 1)
             );
             $otp_data = $zap_resp->collect();

@@ -193,7 +193,7 @@ class ZAP extends ZAPApiHandler
         string $otp_code
     ): Response {
 
-        $membershipData = [
+        $membership_data = [
             'firstName' => $first_name,
             'lastName' => $last_name,
             'birthday' => $birthday->format('Y-m-d'),
@@ -201,7 +201,7 @@ class ZAP extends ZAPApiHandler
         ];
 
         if($email !== ''){
-            $membershipData['email'] = $email;
+            $membership_data['email'] = $email;
         }
 
         return $this->http->post($this->api_url . '/membership/update', [
@@ -212,7 +212,7 @@ class ZAP extends ZAPApiHandler
                 "refId" => $otp_ref,
                 "code" => $otp_code
             ],
-            'membership' => $membershipData
+            'membership' => $membership_data
         ]);
         // TODO handle error response later on, focusing on the happy path first.
         // ->throw(fn ($response, $e) => self::handleHttpError($response, $e))

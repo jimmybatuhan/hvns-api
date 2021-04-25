@@ -22,4 +22,8 @@ class Constants
     public const TRANSACTION_STATUS_KEY = 'status';
     public const MEMBER_BIRTHDAY_KEY = 'zap_member_birthday';
     public const MEMBER_GENDER_KEY = 'zap_member_gender';
+
+    public const OTP_PURPOSE_MEMBERSHIP_UPDATE = 'API_UPDATE_MEMBERSHIP';
+    public const OTP_PURPOSE_USE_POINTS = 'USE_POINTS';
+    public const OTP_PURPOSE_GET_BALANCE = 'GET_BALANCE';
 }

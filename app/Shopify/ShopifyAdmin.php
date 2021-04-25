@@ -152,7 +152,7 @@ class ShopifyAdmin
         ]);
     }
 
-    public function getCustomer(string $shopify_customer_id): Response
+    public function getCustomerById(string $shopify_customer_id): Response
     {
         return $this->http->get($this->admin_api . "/customers/{$shopify_customer_id}.json");
     }

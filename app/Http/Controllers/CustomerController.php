@@ -137,7 +137,7 @@ class CustomerController extends Controller
         $customer_data = [];
 
         $validator = Validator::make($request->all(), [
-            'shopify_customer_id' => ['required', 'bail', function( $attribute, $value, $fail ) use( &$customer_data ){
+            'shopify_customer_id' => ['required', 'bail', function ($attribute, $value, $fail) use (&$customer_data){
                 $customer_data = $this->getCustomerData( $value );
                 if(! $customer_data['success']){
                     $fail( $customer_data['error'] );
@@ -167,6 +167,8 @@ class CustomerController extends Controller
 
             if (!$shopify_response->failed()) {
 
+
+                //TODO Batch Update of Metafields
                 ShopifyAdmin::updateMetafieldById(
                     $request->birthday_metafield_id,
                     $request->birthday
@@ -191,7 +193,7 @@ class CustomerController extends Controller
                 $zap_data = $zap_response->collect();
 
                 if ($zap_response->failed()) {
-                    if($zap_data['error'] == 'Unauthorized'){
+                    if ($zap_data['error'] == 'Unauthorized') {
                         $response = [
                             'success' => false,
                             'errors' => [
@@ -200,7 +202,7 @@ class CustomerController extends Controller
                                 ]
                             ]
                         ];
-                    }else{
+                    } else {
                         $response = [
                             'success' => false,
                             'errors' => [
@@ -210,7 +212,7 @@ class CustomerController extends Controller
                             ]
                         ];
                     }
-                }else{
+                } else {
                     $response = [
                         'success' => true,
                         'message' => 'Customer Updated'
@@ -228,7 +230,7 @@ class CustomerController extends Controller
                 ];
             }
 
-        }else{
+        } else {
             $response = [
                 'success' => false,
                 'errors' => $validator->errors(),
@@ -238,41 +240,54 @@ class CustomerController extends Controller
         return response()->json($response);
     }
 
-    private function getCustomerData(String $shopify_customer_id): array
+    private function getCustomerData(string $shopify_customer_id): array
     {
-
         $customer_data_resp = [];
-        $shopify_customer_resp = ShopifyAdmin::getCustomer( $shopify_customer_id );
+        $shopify_customer_resp = ShopifyAdmin::getCustomerById($shopify_customer_id);
 
-        if(! $shopify_customer_resp->serverError()){
-            if($shopify_customer_resp->status() === Response::HTTP_NOT_FOUND) {
+        if (! $shopify_customer_resp->serverError()){
+            if ($shopify_customer_resp->status() === Response::HTTP_NOT_FOUND) {
                 $customer_data_resp = [
                     'success' => false,
                     'error' => 'Shopify user does not exist'
                 ];
-            }else{
+            } else {
                 $shopify_customer_data = $shopify_customer_resp->collect();
-                $zap_membership_resp = ZAP::getMembershipData( substr( $shopify_customer_data['customer']['phone'], 1 ) );
+                $zap_membership_resp = ZAP::getMembershipData(substr($shopify_customer_data['customer']['phone'], 1));
 
-                if(! $zap_membership_resp->failed()) {
-                    $customer_data_resp = [
-                        'success' => true,
-                        'customer' => [
-                            'email' => $shopify_customer_data['customer']['email']
-                        ]
-                    ];
-                }else{
-                    $customer_data_resp = [
-                        'success' => false,
-                        'error' => 'Zap Customer does not exist'
-                    ];
+                switch ($zap_membership_resp->status()) {
+                    case Response::HTTP_NOT_FOUND:
+                        $customer_data_resp = [
+                            'success' => false,
+                            'error' => 'Zap Customer does not exist'
+                        ];
+                        break;
+                    case Response::HTTP_UNAUTHORIZED:
+                        $customer_data_resp = [
+                            'success' => false,
+                            'error' => 'Unauthorized'
+                        ];
+                        break;
+                    case Response::HTTP_OK:
+                        $customer_data_resp = [
+                            'success' => true,
+                            'customer' => [
+                                'email' => $shopify_customer_data['customer']['email']
+                            ]
+                        ];
+                        break;
+                    default:
+                        $customer_data_resp = [
+                            'success' => false,
+                            'error' => 'Unexpected Error'
+                        ];
+                        break;
                 }
-
             }
-        }else{
+        } else {
             $customer_data_resp = [
                 'success' => false,
-                'error' => 'Shopify user does not exist'
+                'error' => 'Unexpected Error'
             ];
         }
 

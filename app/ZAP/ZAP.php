@@ -200,7 +200,7 @@ class ZAP extends ZAPApiHandler
             'gender' => $gender,
         ];
 
-        if($email !== ''){
+        if ($email !== '') {
             $membership_data['email'] = $email;
         }
 

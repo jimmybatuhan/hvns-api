@@ -28,8 +28,8 @@ Route::prefix('member')->group(function () {
     Route::get('data', [CustomerController::class, 'getZAPMemberData'])->name('zap-member-data');
     Route::get('transactions', [CustomerController::class, 'getZAPMemberTransactions'])
         ->name('zap-member-transactions');
-    Route::get('update', [CustomerController::class, 'updateForm'])->name('customer-update');
     Route::post('update', [CustomerController::class, 'postProcessUpdate'])->name('customer-update');
+    Route::post('request-update-otp', [CustomerController::class, 'requestUpdateOTP'])->name('request-update-otp');
 });
 
 Route::prefix('shopify')->middleware('shopify-verify-webhook')->group(function () {

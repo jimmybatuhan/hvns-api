@@ -20,4 +20,6 @@ class Constants
     public const MEMBER_ID_KEY = 'zap_member_id';
     public const TRANSACTION_REFERENCE_KEY = 'reference_no';
     public const TRANSACTION_STATUS_KEY = 'status';
+    public const MEMBER_BIRTHDAY_KEY = 'zap_member_birthday';
+    public const MEMBER_GENDER_KEY = 'zap_member_gender';
 }

@@ -70,11 +70,11 @@ class ZAP extends ZAPApiHandler
         // ->throw(fn ($response, $e) => self::handleHttpError($response, $e))
     }
 
-    public function sendOTP(string $purpose, string $mobile_number, string $merchant_id): Response
+    public function sendOTP(string $purpose, string $mobile_number): Response
     {
         return $this->http->post($this->api_url . '/otp/send/' . $purpose, [
             'mobileNumber' => $mobile_number,
-            'merchantId' => $merchant_id,
+            'merchantId' => $this->merchant_id,
         ]);
         // TODO handle error response later on, focusing on the happy path first.
         // ->throw(fn ($response, $e) => self::handleHttpError($response, $e))
@@ -188,23 +188,31 @@ class ZAP extends ZAPApiHandler
         string $last_name,
         string $email,
         string $gender,
-        Carbon $birthday
+        Carbon $birthday,
+        string $otp_ref,
+        string $otp_code
     ): Response {
+
+        $membershipData = [
+            'firstName' => $first_name,
+            'lastName' => $last_name,
+            'birthday' => $birthday->format('Y-m-d'),
+            'gender' => $gender,
+        ];
+
+        if($email !== ''){
+            $membershipData['email'] = $email;
+        }
+
         return $this->http->post($this->api_url . '/membership/update', [
             'mobileNumber' => $mobile_number,
+            'merchantId' => $this->merchant_id,
             'branchId' => $this->branch_id,
-            //TODO update OTP process
-            'otp' => [
-                'refId' => "2469436847",
-                'code' => "6721"
+            "otp" => [
+                "refId" => $otp_ref,
+                "code" => $otp_code
             ],
-            'membership' => [
-                'firstName' => $first_name,
-                'lastName' => $last_name,
-                'email' => $email,
-                'birthday' => $birthday->format('Y-m-d'),
-                'gender' => $gender,
-            ]
+            'membership' => $membershipData
         ]);
         // TODO handle error response later on, focusing on the happy path first.
         // ->throw(fn ($response, $e) => self::handleHttpError($response, $e))

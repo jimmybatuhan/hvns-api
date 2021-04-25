@@ -15,18 +15,16 @@ class LogRoute
      * @param  \Closure  $next
      * @return mixed
      */
-    public function handle(Request $request, Closure $next)
+    public function handle(Request $request, Closure $next): Response
     {
         $response = $next($request);
 
-        $log = [
+        Log::channel("http-request-slack")->info(collect([
             'URI' => $request->getUri(),
             'METHOD' => $request->getMethod(),
             'REQUEST_BODY' => $request->all(),
             'RESPONSE' => $response->getContent()
-        ];
-
-        Log::channel("http-request-slack")->info(json_encode($log));
+        ])->toJson());
 
         return $response;
     }

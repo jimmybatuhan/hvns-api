@@ -24,18 +24,18 @@ Route::get('signup', [CustomerController::class, 'registerForm'])->name('signup'
 Route::post('signup', [CustomerController::class, 'postProcessRegistration'])->name('register');
 Route::post('verify-otp', [CustomerController::class, 'verifyOTP']);
 
-Route::prefix('member')->group(function () {
+Route::prefix('member')->middleware('log-route')->group(function () {
     Route::get('data', [CustomerController::class, 'getZAPMemberData'])->name('zap-member-data');
     Route::get('transactions', [CustomerController::class, 'getZAPMemberTransactions'])
         ->name('zap-member-transactions');
 });
 
-Route::prefix('shopify')->middleware('shopify-verify-webhook')->group(function () {
+Route::prefix('shopify')->middleware(['shopify-verify-webhook', 'log-route'])->group(function () {
     Route::post('fulfill', [WebhookController::class, 'onOrderFulfilled']);
     Route::post('fulfillment-update', [WebhookController::class, 'onFulfillmentUpdate']);
 });
 
-Route::middleware('cors')->post('discount-code', [DiscountController::class, 'generateDiscountCode']);
+Route::middleware(['cors', 'log-route'])->post('discount-code', [DiscountController::class, 'generateDiscountCode']);
 
 // Route::get('/dashboard', function () {
 //     return view('dashboard');

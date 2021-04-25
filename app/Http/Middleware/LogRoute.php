@@ -19,16 +19,14 @@ class LogRoute
     {
         $response = $next($request);
 
-        if (app()->environment('local')) {
-            $log = [
-                'URI' => $request->getUri(),
-                'METHOD' => $request->getMethod(),
-                'REQUEST_BODY' => $request->all(),
-                'RESPONSE' => $response->getContent()
-            ];
+        $log = [
+            'URI' => $request->getUri(),
+            'METHOD' => $request->getMethod(),
+            'REQUEST_BODY' => $request->all(),
+            'RESPONSE' => $response->getContent()
+        ];
 
-            Log::channel("http-request-slack")->info(json_encode($log));
-        }
+        Log::channel("http-request-slack")->info(json_encode($log));
 
         return $response;
     }

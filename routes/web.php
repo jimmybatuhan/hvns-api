@@ -24,7 +24,7 @@ Route::get('signup', [CustomerController::class, 'registerForm'])->name('signup'
 Route::post('signup', [CustomerController::class, 'postProcessRegistration'])->name('register');
 Route::post('verify-otp', [CustomerController::class, 'verifyOTP']);
 
-Route::prefix('member')->middleware('log-route')->group(function () {
+Route::prefix('member')->middleware(['cors', 'log-route'])->group(function () {
     Route::get('data', [CustomerController::class, 'getZAPMemberData'])->name('zap-member-data');
     Route::get('transactions', [CustomerController::class, 'getZAPMemberTransactions'])
         ->name('zap-member-transactions');

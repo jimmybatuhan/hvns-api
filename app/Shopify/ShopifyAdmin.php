@@ -154,4 +154,26 @@ class ShopifyAdmin
             ],
         ]);
     }
+
+    public function getCustomerById(string $shopify_customer_id): Response
+    {
+        return $this->http->get($this->admin_api . "/customers/{$shopify_customer_id}.json");
+    }
+
+    public function updateCustomer(
+        string $shopify_customer_id,
+        string $first_name,
+        string $last_name,
+        string $email,
+        string $phone
+    ): Response {
+        return $this->http->put($this->admin_api . "/customers/{$shopify_customer_id}.json", [
+            'customer' => [
+                'first_name' => $first_name,
+                'last_name' => $last_name,
+                'email' => $email,
+                'phone' => $phone,
+            ],
+        ]);
+    }
 }

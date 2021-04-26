@@ -16,7 +16,7 @@ class LogRoute
      * @param  \Closure  $next
      * @return mixed
      */
-    public function handle(Request $request, Closure $next): JSONResponse
+    public function handle(Request $request, Closure $next)
     {
         $response = $next($request);
 

@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'sheet_id' => env('GOOGLE_SHEET_ID', null),
+
     'shopify_api_version' => env('SHOPIFY_API_VERSION', null),
     'shopify_store_url' => env('SHOPIFY_STORE_URL', ''),
     'shopify_access_token' => env('SHOPIFY_ACCESS_TOKEN', ''),
@@ -195,6 +197,12 @@ return [
         * Shopify Admin Service Provider
         */
         App\Providers\ShopifyAdminServiceProvider::class,
+
+        /**
+         *
+         * Promotions provider
+         */
+        App\Providers\ShopPromoServiceProvider::class,
     ],
 
     /*
@@ -257,6 +265,11 @@ return [
         * Shopify Admin Facade.
         */
         'ShopifyAdmin' => App\Shopify\Facades\ShopifyAdmin::class,
+
+        /*
+        * Shop Promos Facade.
+        */
+        'ShopPromo' => App\ShopPromo\Facades\ShopPromo::class,
     ],
 
 ];

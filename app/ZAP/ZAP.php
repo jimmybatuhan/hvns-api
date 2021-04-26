@@ -18,8 +18,6 @@ class ZAP extends ZAPApiHandler
     public $branch_id;
     public $location_id;
 
-    private const ZAP_REWARD_PECENTAGE = 0.02; // 2%
-
     public function __construct()
     {
         $this->api_access_token = config('app.zap_access_token');
@@ -43,7 +41,7 @@ class ZAP extends ZAPApiHandler
 
     public function calculatePoints(float $amount): float
     {
-        return (float) number_format($amount * self::ZAP_REWARD_PECENTAGE, 2);
+        return (float) number_format($amount * Constants::ZAP_REWARD_PECENTAGE, 2);
     }
 
     public function createMember(
@@ -130,6 +128,16 @@ class ZAP extends ZAPApiHandler
             'mobileNumber' => $mobile_number,
             'merchantId' => $this->merchant_id,
             'comment' => $metafields
+        ]);
+    }
+
+    public function earnPoints(float $amount, string $mobile_number, string $comments = ''): Response
+    {
+        return $this->http->post($this->api_url . '/transaction/earn', [
+            'transactionAmount' => $amount,
+            'mobileNumber' => $mobile_number,
+            'merchantId' => $this->merchant_id,
+            'comment' => $comments,
         ]);
     }
 

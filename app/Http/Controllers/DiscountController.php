@@ -35,7 +35,7 @@ class DiscountController extends Controller
                 $customer_current_points = strval(($customer_balance['data']['currencies'][0]['validPoints']) * -1);
                 $shopify_response = ShopifyAdmin::getDiscountCode($discount_code);
 
-                if (! $shopify_response->serverError()) {
+                if ($shopify_response->ok()) {
                     if ($shopify_response->status() === Response::HTTP_NOT_FOUND) {
                         // create a new price rule
                         $price_rule_response = ShopifyAdmin::createPriceRule(
@@ -126,9 +126,5 @@ class DiscountController extends Controller
     {
         //change if they want a different naming convention for the disount code
         return $customer_id;
-    }
-
-    public function getCustomerExistingDiscountCode(){
-
     }
 }

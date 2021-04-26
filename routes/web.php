@@ -4,6 +4,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
+use Revolution\Google\Sheets\Sheets;
 
 /*
 |--------------------------------------------------------------------------
@@ -38,6 +39,7 @@ Route::prefix('shopify')->middleware(['shopify-verify-webhook', 'log-route'])->g
 });
 
 Route::middleware(['cors', 'log-route'])->post('discount-code', [DiscountController::class, 'generateDiscountCode']);
+
 
 // Route::get('/dashboard', function () {
 //     return view('dashboard');

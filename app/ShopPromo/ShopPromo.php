@@ -53,13 +53,17 @@ class ShopPromo
      *
      * TODO: make this by batch for faster result
      */
-    public function calculatePoints(string $sku, int $quantity, float $amount): float
+    public function calculatePoints(array $item): float
     {
-        $promotion = $this->getPromotion($sku)->first();
+        $sku = $item['sku'];
+        $quantity = $item['quantity'];
+        $amount = floatval($item['price']);
+        $promotion = $this->getPromotion($sku);
         $default_points = $amount * ZAPConstants::ZAP_REWARD_PECENTAGE;
         $points = $default_points;
 
         if (! $promotion->isEmpty()) {
+            $promotion = $promotion->first();
             $reward_type = trim(strtolower($promotion[self::REWARD_TYPE_KEY]));
             $reward_amount = floatval($promotion[self::REWARD_AMOUNT_KEY]);
 

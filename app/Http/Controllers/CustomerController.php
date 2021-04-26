@@ -97,14 +97,15 @@ class CustomerController extends Controller
             /**
              * Attach the member id  to the shopify customer resource
              */
-            ShopifyAdmin::addMetafieldsToResource(
+            ShopifyAdmin::addMetafields(
                 ShopifyConstants::CUSTOMER_RESOURCE,
                 $shopify_customer_id,
-                collect()->push([
-                    'key' => ZAPConstants::MEMBER_ID_KEY,
-                    'namespace' => ZAPConstants::MEMBER_NAMESPACE,
-                    'value' => $zap_member_id,
-                ])
+                collect()
+                    ->push([
+                        'key' => ZAPConstants::MEMBER_ID_KEY,
+                        'namespace' => ZAPConstants::MEMBER_NAMESPACE,
+                        'value' => $zap_member_id,
+                    ])
             );
         } else {
             /**

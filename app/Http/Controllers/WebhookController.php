@@ -7,8 +7,10 @@ use App\Shopify\Facades\ShopifyAdmin;
 use App\ShopPromo\Facades\ShopPromo;
 use App\ZAP\Constants as ZAPConstants;
 use App\ZAP\Facades\ZAP;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 class WebhookController extends Controller
@@ -69,68 +71,128 @@ class WebhookController extends Controller
         $success = true;
         $status = Response::HTTP_OK;
         $body = $request->all();
+        $order_id = $body['id'];
         $customer = $body['customer'];
         $line_items = collect($body['line_items']);
+        $metafields = collect([
+            'order_id' => $order_id,
+            'sub_total' => floatval($body['current_subtotal_price']),
+        ]);
 
         if ($customer) {
-            // remove special characters (ex. (+00)000-000-0000 -> 0000000000)
-            $mobile = preg_replace('/([^\d])/', '', $customer['phone']);
             $customer_id = $customer['id'];
-            $shopify_response = ShopifyAdmin::fetchMetafield($customer_id, ShopifyConstants::CUSTOMER_RESOURCE);
-            $customer_member_id = $shopify_response->metafield(
+            $mobile = substr($customer['phone'], 1);
+            $customer_metafields = ShopifyAdmin::fetchMetafield($customer_id, ShopifyConstants::CUSTOMER_RESOURCE);
+            $customer_balance_metafield_id = $customer_metafields->metafield(
+                ZAPConstants::MEMBER_NAMESPACE,
+                ZAPConstants::MEMBER_POINTS_KEY,
+                ShopifyConstants::METAFIELD_INDEX_ID,
+            );
+            $customer_member_id = $customer_metafields->metafield(
                 ZAPConstants::MEMBER_NAMESPACE,
                 ZAPConstants::MEMBER_ID_KEY,
                 ShopifyConstants::METAFIELD_INDEX_VALUE
             );
 
             // if customer has a member id from ZAP, this means we should add a point in its account
+            // else ignore the event.
             if ($customer_member_id) {
-                $metafields = collect([
-                    'order_id' => $body['id'],
-                    'sub_total' => (float) $body['current_subtotal_price'],
-                ]);
-                $total_points = $line_items
-                    ->map(fn (array $item) => ShopPromo::calculatePoints(
-                        $item['sku'],
-                        $item['quantity'],
-                        floatval($item['price']
-                    )))
-                    ->sum();
-                $zap_response = ZAP::addPoints($total_points, $mobile, $metafields->toJson());
+                $total_points = $line_items->map(fn (array $item) => ShopPromo::calculatePoints($item))->sum();
+                $zap_add_points_response = ZAP::addPoints($total_points, $mobile, $metafields->toJson());
+                $current_balance_response = ZAP::inquireBalance($mobile);
 
-                if ($zap_response->ok()) {
-                    $zap_response_body = $zap_response->collect();
-                    $shopify_response = ShopifyAdmin::addMetafieldsToResource(
-                        ShopifyConstants::ORDER_RESOURCE,
-                        $metafields['order_id'],
-                        collect()
-                            ->push([
-                                'key' => ZAPConstants::TRANSACTION_REFERENCE_KEY,
-                                'value' =>$zap_response_body['data']['refNo'],
-                                'namespace' => ZAPConstants::TRANSACTION_NAMESPACE,
-                            ])
-                            ->push([
-                                'key' => ZAPConstants::TRANSACTION_STATUS_KEY,
-                                'value' => ZAPConstants::TRANSACTION_STATUS_CLEARED,
-                                'namespace' => ZAPConstants::TRANSACTION_NAMESPACE,
-                            ])
-                            ->push([
-                                'key' => ZAPConstants::TRANSACTION_POINTS_KEY,
-                                'value' => $total_points,
-                                'namespace' => ZAPConstants::TRANSACTION_NAMESPACE,
-                            ])
-                    );
+                if ($current_balance_response->ok()) {
+                    $customer_balance = $current_balance_response->collect();
+                    $current_customer_balance = $customer_balance['data']['currencies'][0]['validPoints'];
 
-                    if ($shopify_response->failed()) {
-                        // Log error here
+                    if ($zap_add_points_response->ok()) {
+                        $add_points_response_body = $zap_add_points_response->collect();
+                        $zap_transaction_reference_no = $add_points_response_body['data']['refNo'];
+                        $order_metafields = ShopifyAdmin::fetchMetafield($order_id, ShopifyConstants::ORDER_RESOURCE);
+                        $order_transaction_lists = $order_metafields->metafield(
+                            ZAPConstants::TRANSACTION_NAMESPACE,
+                            ZAPConstants::TRANSACTION_LIST_KEY
+                        );
+                        $transactions = collect($order_transaction_lists
+                            ? json_decode($order_transaction_lists[ShopifyConstants::METAFIELD_INDEX_VALUE], true)
+                            : []);
+                        $transactions->push([
+                            ZAPConstants::TRANSACTION_REFERENCE_KEY => $zap_transaction_reference_no,
+                            ZAPConstants::TRANSACTION_POINTS_KEY => $total_points,
+                            ZAPConstants::TRANSACTION_STATUS_KEY => ZAPConstants::TRANSACTION_STATUS_CLEARED,
+                            'fulfilled_at' => Carbon::now()->toIso8601String(),
+                        ]);
+
+                        // Update or add the point balance in the customer metafield
+                        $new_customer_balance = $customer_balance_metafield_id
+                            ? ShopifyAdmin::updateMetafieldById($customer_balance_metafield_id, $current_customer_balance)
+                            : ShopifyAdmin::addMetafields(
+                                ShopifyConstants::CUSTOMER_RESOURCE,
+                                $customer_id,
+                                collect()->push([
+                                    'key' => ZAPConstants::MEMBER_POINTS_KEY,
+                                    'value' => $current_customer_balance,
+                                    'namespace' => ZAPConstants::MEMBER_NAMESPACE
+                                ])
+                            );
+
+                        if ($new_customer_balance->failed()) {
+                            // log warning to slack to manual update the metafield, still return true
+                        }
+
+                        if ($order_transaction_lists) {
+                            $last_transaction_reference_metafield_id = $order_metafields->metafield(
+                                ZAPConstants::TRANSACTION_NAMESPACE,
+                                ZAPConstants::LAST_TRANSACTION_KEY,
+                                ShopifyConstants::METAFIELD_INDEX_ID
+                            );
+
+                            if (ShopifyAdmin::updateMetafieldById(
+                                $order_transaction_lists[ShopifyConstants::METAFIELD_INDEX_ID],
+                                $transactions->toJson(),
+                            )->failed()) {
+                                // log warning to slack to manual update the metafield, still return true
+                            }
+                            if (ShopifyAdmin::updateMetafieldById(
+                                $last_transaction_reference_metafield_id,
+                                $zap_transaction_reference_no,
+                            )->failed()) {
+                                // log warning to slack to manual update the metafield, still return true
+                            }
+                        } else {
+                            if (ShopifyAdmin::addMetafields(
+                                ShopifyConstants::ORDER_RESOURCE,
+                                $order_id,
+                                collect()
+                                    ->push([
+                                        'key' => ZAPConstants::TRANSACTION_LIST_KEY,
+                                        'value' => $transactions->toJson(),
+                                        'namespace' => ZAPConstants::TRANSACTION_NAMESPACE
+                                    ])
+                                    ->push([
+                                        'key' => ZAPConstants::LAST_TRANSACTION_KEY,
+                                        'value' => $zap_transaction_reference_no,
+                                        'namespace' => ZAPConstants::TRANSACTION_NAMESPACE
+                                    ])
+                                )->failed()
+                            ) {
+                                // log warning to slack to manual add the metafield, still return true
+                            }
+                        }
+                    } else {
                         $success = false;
                         $status = Response::HTTP_INTERNAL_SERVER_ERROR;
+                        Log::critical("failed to add points to fulfilled order #{$order_id}", [
+                           'zap_add_points_response' => $zap_add_points_response->json(),
+                            'transaction_metafields' => $metafields->toJson(),
+                            'calculated_points' => $total_points,
+                            'customer_id' => $customer_id,
+                        ]);
                     }
                 } else {
-                    // Log error here
-                    $success = false;
-                    $status = Response::HTTP_INTERNAL_SERVER_ERROR;
+
                 }
+
             } else {
                 // Log warning here, but return a success response
             }

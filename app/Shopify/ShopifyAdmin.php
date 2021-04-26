@@ -28,7 +28,7 @@ class ShopifyAdmin
         ]);
     }
 
-    public function addMetafieldsToResource(
+    public function addMetafields(
         string $resource,
         string $id,
         Collection $metafields

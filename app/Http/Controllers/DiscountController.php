@@ -127,8 +127,4 @@ class DiscountController extends Controller
         //change if they want a different naming convention for the disount code
         return $customer_id;
     }
-
-    public function getCustomerExistingDiscountCode(){
-
-    }
 }

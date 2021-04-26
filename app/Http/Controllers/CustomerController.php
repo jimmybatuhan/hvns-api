@@ -109,7 +109,7 @@ class CustomerController extends Controller
                 ->push([
                     'key' => ZAPConstants::MEMBER_BIRTHDAY_KEY,
                     'namespace' => ZAPConstants::MEMBER_NAMESPACE,
-                    'value' => new Carbon($request->birthday),
+                    'value' => (new Carbon($request->birthday))->format('Y-m-d'),
                 ])
                 ->push([
                     'key' => ZAPConstants::MEMBER_GENDER_KEY,

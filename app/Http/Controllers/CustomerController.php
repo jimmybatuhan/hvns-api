@@ -137,10 +137,10 @@ class CustomerController extends Controller
         $customer_data = [];
 
         $validator = Validator::make($request->all(), [
-            'shopify_customer_id' => ['required', 'bail', function ($attribute, $value, $fail) use (&$customer_data){
+            'shopify_customer_id' => ['required', 'bail', function ($attribute, $value, $fail) use (&$customer_data) {
                 $customer_data = $this->getCustomerData( $value );
-                if(! $customer_data['success']){
-                    $fail( $customer_data['error'] );
+                if (! $customer_data['success']) {
+                    $fail($customer_data['error']);
                 }
             }],
             'first_name' => 'required|bail',
@@ -156,7 +156,6 @@ class CustomerController extends Controller
         ]);
 
         if (! $validator->fails()) {
-
             $shopify_response = ShopifyAdmin::updateCustomer(
                 $request->shopify_customer_id,
                 $request->first_name,
@@ -165,20 +164,7 @@ class CustomerController extends Controller
                 $request->mobile
             );
 
-            if (!$shopify_response->failed()) {
-
-
-                //TODO Batch Update of Metafields
-                ShopifyAdmin::updateMetafieldById(
-                    $request->birthday_metafield_id,
-                    $request->birthday
-                );
-
-                ShopifyAdmin::updateMetafieldById(
-                    $request->gender_metafield_id,
-                    $request->gender
-                );
-
+            if (! $shopify_response->failed()) {
                 $zap_response = ZAP::updateMember(
                     substr( $request->mobile, 1 ),
                     $request->first_name,
@@ -198,35 +184,44 @@ class CustomerController extends Controller
                             'success' => false,
                             'errors' => [
                                 'otp_code' => [
-                                    'OTP Code Incorrect'
-                                ]
-                            ]
+                                    'OTP Code Incorrect',
+                                ],
+                            ],
                         ];
                     } else {
                         $response = [
                             'success' => false,
                             'errors' => [
                                 'message' => [
-                                    'ZAP Customer failed to update'
-                                ]
-                            ]
+                                    'ZAP Customer failed to update',
+                                ],
+                            ],
                         ];
                     }
                 } else {
+                    ShopifyAdmin::updateMetafieldById(
+                        $request->birthday_metafield_id,
+                        $request->birthday
+                    );
+
+                    ShopifyAdmin::updateMetafieldById(
+                        $request->gender_metafield_id,
+                        $request->gender
+                    );
+
                     $response = [
                         'success' => true,
-                        'message' => 'Customer Updated'
+                        'message' => 'Customer Updated',
                     ];
                 }
-
             } else {
                 $response = [
                     'success' => false,
                     'errors' => [
                         'message' => [
-                            'Shopify Customer failed to update'
-                        ]
-                    ]
+                            'Shopify Customer failed to update',
+                        ],
+                    ],
                 ];
             }
 

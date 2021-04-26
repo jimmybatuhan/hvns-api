@@ -23,6 +23,7 @@ class LogRoute
         Log::channel("http-request-slack")->info(collect([
             'URI' => $request->getUri(),
             'METHOD' => $request->getMethod(),
+            'HEADERS' => $request->header(),
             'REQUEST_BODY' => $request->all(),
             'RESPONSE' => $response->getContent()
         ])->toJson());

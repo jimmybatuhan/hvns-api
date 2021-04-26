@@ -12,7 +12,7 @@ class Constants
     public const MOBILE_ALREADY_EXISTS = '400-04';
     public const NOT_FOUND = '404-00';
     public const LAST_TRANSACTION_KEY = 'last_transaction';
-    public const TRANSACTION_LIST_KEY = 'transaction_lits';
+    public const TRANSACTION_LIST_KEY = 'transaction_list';
     public const TRANSACTION_NAMESPACE = 'zap_transaction';
     public const TRANSACTION_POINTS_KEY = 'calculated_points';
     public const TRANSACTION_REFERENCE_KEY = 'reference_no';

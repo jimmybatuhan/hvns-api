@@ -36,21 +36,24 @@ class DiscountController extends Controller
                 $shopify_response = ShopifyAdmin::getDiscountCode($discount_code);
 
                 if ($shopify_response->ok()) {
-                    if ($shopify_response->status() === Response::HTTP_NOT_FOUND) {
-                        // create a new price rule
-                        $price_rule_response = ShopifyAdmin::createPriceRule(
-                            $discount_name,
-                            $shopify_customer_id,
-                            $customer_current_points
-                        );
-                        $new_price_rule = $price_rule_response->collect();
 
-                        if (! $price_rule_response->failed()) {
-                            $new_discount_code_response = ShopifyAdmin::createDiscountCode(
-                                $new_price_rule['price_rule']['id'],
-                                $discount_code
+                    // if discount code already exists, get the price rule
+                    $discount_response = $shopify_response->collect();
+                    $discount_price_rule_id = $discount_response['discount_code']['price_rule_id'];
+                    $price_rule_response = ShopifyAdmin::getPriceRule($discount_price_rule_id);
+                    $price_rule = $price_rule_response->collect();
+
+                    if (! $price_rule_response->failed()) {
+                        // if points and the amount is not the same
+                        $price_rule_amount = $price_rule['price_rule']['value'];
+                        if ($customer_current_points !== $price_rule_amount) {
+                            // update the price rule
+                            $price_rule_update_response = ShopifyAdmin::updatePriceRuleAmount(
+                                $discount_price_rule_id,
+                                $customer_current_points
                             );
-                            if (! $new_discount_code_response->failed()) {
+
+                            if (! $price_rule_update_response->failed()) {
                                 $response = [
                                     'success' => true,
                                     'discount_code' => $discount_code,
@@ -58,50 +61,47 @@ class DiscountController extends Controller
                             } else {
                                 $response = [
                                     'success' => false,
-                                    'message' => 'failed to create a new discount',
+                                    'message' => 'failed to update the price rule',
                                 ];
                             }
+                        }
+                    } else {
+                        $response = [
+                            'success' => false,
+                            'message' => 'failed to get the price rule',
+                        ];
+                    }
+
+                } else if ($shopify_response->status() === Response::HTTP_NOT_FOUND) {
+                    // create a new price rule
+                    $price_rule_response = ShopifyAdmin::createPriceRule(
+                        $discount_name,
+                        $shopify_customer_id,
+                        $customer_current_points
+                    );
+                    $new_price_rule = $price_rule_response->collect();
+
+                    if (! $price_rule_response->failed()) {
+                        $new_discount_code_response = ShopifyAdmin::createDiscountCode(
+                            $new_price_rule['price_rule']['id'],
+                            $discount_code
+                        );
+                        if (! $new_discount_code_response->failed()) {
+                            $response = [
+                                'success' => true,
+                                'discount_code' => $discount_code,
+                            ];
                         } else {
                             $response = [
                                 'success' => false,
-                                'message' => 'failed to create a new price rule',
+                                'message' => 'failed to create a new discount',
                             ];
                         }
                     } else {
-                        // if discount code already exists, get the price rule
-                        $discount_response = $shopify_response->collect();
-                        $discount_price_rule_id = $discount_response['discount_code']['price_rule_id'];
-                        $price_rule_response = ShopifyAdmin::getPriceRule($discount_price_rule_id);
-                        $price_rule = $price_rule_response->collect();
-
-                        if (! $price_rule_response->failed()) {
-                            // if points and the amount is not the same
-                            $price_rule_amount = $price_rule['price_rule']['value'];
-                            if ($customer_current_points !== $price_rule_amount) {
-                                // update the price rule
-                                $price_rule_update_response = ShopifyAdmin::updatePriceRuleAmount(
-                                    $discount_price_rule_id,
-                                    $customer_current_points
-                                );
-
-                                if (! $price_rule_update_response->failed()) {
-                                    $response = [
-                                        'success' => true,
-                                        'discount_code' => $discount_code,
-                                    ];
-                                } else {
-                                    $response = [
-                                        'success' => false,
-                                        'message' => 'failed to update the price rule',
-                                    ];
-                                }
-                            }
-                        } else {
-                            $response = [
-                                'success' => false,
-                                'message' => 'failed to get the price rule',
-                            ];
-                        }
+                        $response = [
+                            'success' => false,
+                            'message' => 'failed to create a new price rule',
+                        ];
                     }
                 } else {
                     // TODO log the error

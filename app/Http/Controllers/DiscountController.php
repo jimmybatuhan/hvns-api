@@ -18,6 +18,7 @@ class DiscountController extends Controller
         $validator = Validator::make($request->all(), [
             'mobile' => 'required|bail',
             'shopify_customer_id' => 'required|bail',
+            'points_to_use' => 'numeric|required|bail',
         ]);
 
         // TODO validate if the mobile no. exists in ZAP
@@ -32,7 +33,14 @@ class DiscountController extends Controller
 
             if (! $zap_response->failed()) {
                 //TODO: Change this to for loop to get the correct currency if they have multiples
-                $customer_current_points = strval(($customer_balance['data']['currencies'][0]['validPoints']) * -1);
+                $available_customer_points = $customer_balance['data']['currencies'][0]['validPoints'];
+
+                if ($request->points_to_use > $available_customer_points) {
+                    $customer_current_points = strval($available_customer_points * -1);
+                }else {
+                    $customer_current_points = strval($request->points_to_use * -1);
+                }
+
                 $shopify_response = ShopifyAdmin::getDiscountCode($discount_code);
 
                 if ($shopify_response->ok()) {
@@ -110,6 +118,39 @@ class DiscountController extends Controller
                         'message' => 'failed to create dicount code',
                     ];
                 }
+            } else {
+                // TODO log the error
+                $response = [
+                    'success' => false,
+                    'message' => $customer_balance['error'],
+                ];
+            }
+        }
+
+        return response()->json($response);
+    }
+
+    public function getDiscountPoints(Request $request): JsonResponse
+    {
+        $response = [];
+        $validator = Validator::make($request->all(), [
+            'mobile' => 'required|bail',
+        ]);
+
+        // TODO validate if the mobile no. exists in ZAP
+        if (! $validator->fails()) {
+            $zap_response = ZAP::inquireBalance($request->mobile);
+            $customer_balance = $zap_response->collect();
+
+            if (! $zap_response->failed()) {
+                //TODO: Change this to for loop to get the correct currency if they have multiples
+                $customer_current_points = $customer_balance['data']['currencies'][0]['validPoints'];
+
+                $response = [
+                    'success' => true,
+                    'available_points' => $customer_current_points,
+                ];
+
             } else {
                 // TODO log the error
                 $response = [

@@ -39,6 +39,7 @@ Route::prefix('shopify')->middleware(['shopify-verify-webhook', 'log-route'])->g
 });
 
 Route::middleware(['cors', 'log-route'])->post('discount-code', [DiscountController::class, 'generateDiscountCode']);
+Route::middleware(['cors', 'log-route'])->post('discount-points', [DiscountController::class, 'getDiscountPoints']);
 
 
 // Route::get('/dashboard', function () {

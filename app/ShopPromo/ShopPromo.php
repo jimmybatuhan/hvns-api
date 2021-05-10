@@ -10,16 +10,27 @@ use Sheets;
 class ShopPromo
 {
     public const REWARD_TYPE_PRECISE = 'precise';
-    public const REWARD_TYPE_PERCENTAGE = 'percentage';
+    public const REWARD_TYPE_MULTIPLIER = 'multiplier';
     public const REWARD_TYPE_KEY = 'REWARD TYPE';
     public const REWARD_AMOUNT_KEY = 'REWARD AMOUNT';
     public const PROMOTION_SKU_KEY = 'BARCODE';
+    public const PROMOTION_TAB = 'Sheet1';
 
+    private $promotions = [];
     private $sheet_id;
 
     public function __construct()
     {
         $this->sheet_id = config('app.sheet_id');
+
+        /**
+         * TODO organize the spreadsheet according to the product styles for faster lookup
+         * will use the first sheet for now.
+         * */
+        $rows = Sheets::spreadsheet($this->sheet_id)->sheet(self::PROMOTION_TAB)->get();
+        $headers = $rows->pull(0);
+
+        $this->promotions = Sheets::collection($headers, $rows);
     }
 
     public function getPromotions(string $tab_name = ''): Collection
@@ -36,14 +47,14 @@ class ShopPromo
 
     public function hasPromotion(string $sku): bool
     {
-        return $this->getPromotions()
+        return $this->promotions
             ->filter(fn (Collection $promo) => $promo[self::PROMOTION_SKU_KEY] === $sku)
             ->isEmpty();
     }
 
     public function getPromotion(string $sku): Collection
     {
-        return $this->getPromotions()
+        return $this->promotions
             ->filter(fn (Collection $promo) => $promo[self::PROMOTION_SKU_KEY] === $sku);
     }
 
@@ -70,10 +81,10 @@ class ShopPromo
             if ($reward_amount > 0) {
                 switch ($reward_type) {
                     case self::REWARD_TYPE_PRECISE:
-                        $points = $reward_amount;
+                        $points = $default_points + $reward_amount;
                         break;
-                    case self::REWARD_TYPE_PERCENTAGE:
-                        $points = $amount * ($reward_amount / 100);
+                    case self::REWARD_TYPE_MULTIPLIER:
+                        $points = $default_points * $reward_amount;
                         break;
                     default:
                         // Log a warning, unknown reward type, resolve by using the default 2%

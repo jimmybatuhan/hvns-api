@@ -2,12 +2,13 @@
 
 namespace App\Shopify;
 
-use App\Shopify\Mixins\MetafieldMixin;
 use App\Shopify\Constants;
+use App\Shopify\Mixins\MetafieldMixin;
 use Carbon\Carbon;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class ShopifyAdmin
@@ -34,7 +35,7 @@ class ShopifyAdmin
         string $id,
         Collection $metafields
     ): Response {
-        return $this->http->put($this->admin_api . "/{$resource}/{$id}.json", [
+        $response = $this->http->put($this->admin_api . "/{$resource}/{$id}.json", [
             Str::singular($resource) => [
                 'id' => $id,
                 'metafields' => $metafields->map(function ($metafield) {
@@ -47,6 +48,12 @@ class ShopifyAdmin
                 })->toArray(),
             ],
         ]);
+
+        if ($response->failed()) {
+            Log::warning("failed to add metafield in #{$id} at {$resource} resource", $metafields->toArray());
+        }
+
+        return $response;
     }
 
     public function updateMetafieldById(
@@ -54,13 +61,23 @@ class ShopifyAdmin
         string $value,
         string $value_type = Constants::METAFIELD_VALUE_TYPE_STRING
     ): Response {
-        return $this->http->put($this->admin_api . "/metafields/{$metafield_id}.json", [
+        $response = $this->http->put($this->admin_api . "/metafields/{$metafield_id}.json", [
             'metafield' => [
                 'id' => $metafield_id,
                 'value' => $value,
                 'value_type' => $value_type,
             ]
         ]);
+
+        if ($response->failed()) {
+            Log::warning("failed to update metafield #{$metafield_id}", [
+                'value' => $value,
+                'type' => $value_type
+            ]);
+        }
+
+        return $response;
+
     }
 
     public function fetchMetafield(string $id, string $resource): Response

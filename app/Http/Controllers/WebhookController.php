@@ -48,42 +48,61 @@ class WebhookController extends Controller
 
                     // if the customer is a ZAP member, void the transaction
                     if ($customer_metafields->ZAPMemberId(ShopifyConstants::METAFIELD_INDEX_VALUE)) {
-                        $last_transaction_reference_reference_no = $order_metafields
-                            ->lastZAPTransactionRefNo(ShopifyConstants::METAFIELD_INDEX_VALUE);
+                        $last_zap_transaction = $order_metafields->lastZAPTransaction();
+                        $last_zap_trans_status = $last_zap_transaction[ZAPConstants::TRANSACTION_STATUS_KEY];
 
-                        if ($last_transaction_reference_reference_no) {
-                            $order_transaction_list = collect(json_decode($order_metafields
-                                ->ZAPTransactions(ShopifyConstants::METAFIELD_INDEX_VALUE), true));
-                            $last_transaction_points = floatval($order_transaction_list
-                                ->filter(fn (array $transaction) =>
-                                    $transaction[ZAPConstants::TRANSACTION_REFERENCE_KEY] === $last_transaction_reference_reference_no
-                                )
-                                ->first()[ZAPConstants::TRANSACTION_POINTS_KEY]);
-                            $void_response = ZAP::deductPoints($last_transaction_points, $customer_mobile, collect([
-                                'void_transaction_for' => $last_transaction_reference_reference_no,
-                            ])->toJson());
+                        if ($last_zap_transaction) {
+                            /**
+                             * Prevent the system from deducting points from previously deducted order,
+                             * this should not happend, but will prevent it anyway just in case.
+                             */
+                            if ($last_zap_trans_status != ZAPConstants::VOID_POINT_STATUS) {
+                                $order_transaction_list = collect($order_metafields->transactionList());
+                                $last_transaction_points = $last_zap_transaction[ZAPConstants::TRANSACTION_POINTS_KEY];
+                                $last_trans_meta_id = $order_metafields->lastZAPTransactionMetaId();
+                                $trans_list_meta_id = $order_metafields->ZAPTransactionListMetaId();
+                                $void_response = ZAP::deductPoints($last_transaction_points, $customer_mobile);
 
-                            if ($void_response->ok()) {
-                                $current_balance = ZAP::inquireBalance($customer_mobile)->collect();
-                                $customer_current_balance = $current_balance['data']['currencies'][0]['validPoints'];
+                                if ($void_response->ok()) {
+                                    $current_balance = ZAP::inquireBalance($customer_mobile)->collect();
+                                    $customer_current_balance = $current_balance['data']['currencies'][0]['validPoints'];
+                                    $void_trans_body = $void_response->collect();
+                                    $void_trans_ref_no = $void_trans_body['data']['refNo'];
 
-                                if (ShopifyAdmin::updateMetafieldById(
+                                    $zap_new_transaction = [
+                                        ZAPConstants::TRANSACTION_REFERENCE_KEY => $void_trans_ref_no,
+                                        ZAPConstants::TRANSACTION_POINTS_KEY => $last_transaction_points,
+                                        ZAPConstants::TRANSACTION_STATUS_KEY => ZAPConstants::VOID_POINT_STATUS,
+                                        'fulfilled_at' => Carbon::now()->toIso8601String()
+                                    ];
+
+                                    $order_transaction_list->push($zap_new_transaction);
+
+                                    // Update the last zap transaction in the metafield of the order
+                                    ShopifyAdmin::updateMetafieldById(
+                                        $last_trans_meta_id,
+                                        json_encode($zap_new_transaction),
+                                        ShopifyConstants::METAFIELD_VALUE_TYPE_JSON_STRING
+                                    );
+                                    // Update the order's transaction list
+                                    ShopifyAdmin::updateMetafieldById(
+                                        $trans_list_meta_id,
+                                        $order_transaction_list->toJson(),
+                                        ShopifyConstants::METAFIELD_VALUE_TYPE_JSON_STRING
+                                    );
+                                    // Update the customer balance metafield
+                                    ShopifyAdmin::updateMetafieldById(
                                         $customer_balance_metafield_id,
                                         $customer_current_balance
-                                    )->failed())
-                                {
-                                    Log::warning("failed to update customer balance metafield", [
-                                        'metafield_id' => $customer_balance_metafield_id,
-                                        'value' => $customer_current_balance,
+                                    );
+                                } else {
+                                    $response_status = Response::HTTP_INTERNAL_SERVER_ERROR;
+                                    $success = false;
+                                    Log::critical("failed to void ZAP transaction {$last_ref_no}", [
+                                        'order_id' => $order_id,
+                                        'response' => $void_response->collect(),
                                     ]);
                                 }
-                            } else {
-                                $response_status = Response::HTTP_INTERNAL_SERVER_ERROR;
-                                $success = false;
-                                Log::critical("failed to void ZAP transaction {$last_transaction_reference_reference_no}", [
-                                    'order_id' => $order_id,
-                                    'response' => $void_response->collect(),
-                                ]);
                             }
                         }
                     }
@@ -121,7 +140,6 @@ class WebhookController extends Controller
                 $mobile = substr($customer['phone'], 1);
                 $order_metafields = ShopifyAdmin::fetchMetafield($order_id, ShopifyConstants::ORDER_RESOURCE);
                 $customer_metafields = ShopifyAdmin::fetchMetafield($customer_id, ShopifyConstants::CUSTOMER_RESOURCE);
-
                 $customer_member_id = $customer_metafields->ZAPMemberId(ShopifyConstants::METAFIELD_INDEX_VALUE);
                 $customer_balance_metafield_id = $customer_metafields
                     ->ZAPMemberTotalPoints(ShopifyConstants::METAFIELD_INDEX_ID);
@@ -141,18 +159,21 @@ class WebhookController extends Controller
                             $add_points_response_body = $zap_add_points_response->collect();
                             $zap_transaction_reference_no = $add_points_response_body['data']['refNo'];
                             $order_transaction_list = $order_metafields->ZAPTransactions();
+                            $zap_new_transaction = [
+                                ZAPConstants::TRANSACTION_REFERENCE_KEY => $zap_transaction_reference_no,
+                                ZAPConstants::TRANSACTION_POINTS_KEY => $total_points,
+                                ZAPConstants::TRANSACTION_STATUS_KEY => ZAPConstants::EARN_POINT_STATUS,
+                                'fulfilled_at' => Carbon::now()->toIso8601String(),
+                            ];
 
-                            // If transaction list not empty, decode else create a an empty collection
+                            // If transaction list is not empty, decode else create a an empty collection
                             $transactions = collect($order_transaction_list
                                 ? json_decode($order_transaction_list[ShopifyConstants::METAFIELD_INDEX_VALUE], true)
                                 : []);
 
                             // Add this new transaction to the collection
-                            $transactions->push([
-                                ZAPConstants::TRANSACTION_REFERENCE_KEY => $zap_transaction_reference_no,
-                                ZAPConstants::TRANSACTION_POINTS_KEY => $total_points,
-                                'fulfilled_at' => Carbon::now()->toIso8601String(),
-                            ]);
+                            $transactions->push($zap_new_transaction);
+                            $json_transactions = $transactions->toJson();
 
                             if ($order_transaction_list) {
                                 $last_transaction_reference_metafield_id = $order_metafields
@@ -161,67 +182,46 @@ class WebhookController extends Controller
                                 $transactions_metafield_id = $order_transaction_list[ShopifyConstants::METAFIELD_INDEX_ID];
 
                                 // Update the order's ZAP transaction list
-                                if (ShopifyAdmin::updateMetafieldById(
-                                        $transactions_metafield_id,
-                                        $transactions->toJson()
-                                    )->failed())
-                                {
-                                    Log::warning(
-                                        "failed to update ZAP transaction lists metafield in order #{$order_id}",
-                                        [
-                                            'metafield_id' => $transactions_metafield_id,
-                                            'value' => $transactions->toJson(),
-                                        ]
-                                    );
-                                }
+                                ShopifyAdmin::updateMetafieldById(
+                                    $transactions_metafield_id,
+                                    $json_transactions,
+                                    ShopifyConstants::METAFIELD_VALUE_TYPE_JSON_STRING
+                                );
 
                                 // Update the metafield of the order's last ZAP transaction
-                                if (ShopifyAdmin::updateMetafieldById(
-                                        $last_transaction_reference_metafield_id,
-                                        $zap_transaction_reference_no,
-                                    )->failed())
-                                {
-                                    Log::warning(
-                                        "failed to update ZAP transaction reference metafield in order #{$order_id}",
-                                        [
-                                            'metafield_id' => $last_transaction_reference_metafield_id,
-                                            'value' => $zap_transaction_reference_no,
-                                        ]
-                                    );
-                                }
+                                ShopifyAdmin::updateMetafieldById(
+                                    $last_transaction_reference_metafield_id,
+                                    json_encode($zap_new_transaction),
+                                    ShopifyConstants::METAFIELD_VALUE_TYPE_JSON_STRING
+                                );
                             } else {
-                                $order_metafields = collect()
-                                    ->push([
-                                        'key' => ZAPConstants::TRANSACTION_LIST_KEY,
-                                        'value' => $transactions->toJson(),
-                                        'value_type' => ShopifyConstants::METAFIELD_VALUE_TYPE_JSON_STRING,
-                                        'namespace' => ZAPConstants::TRANSACTION_NAMESPACE
-                                    ])
-                                    ->push([
-                                        'key' => ZAPConstants::LAST_TRANSACTION_KEY,
-                                        'value' => $zap_transaction_reference_no,
-                                        'namespace' => ZAPConstants::TRANSACTION_NAMESPACE
-                                    ]);
-
-                                if (ShopifyAdmin::addMetafields(
-                                        ShopifyConstants::ORDER_RESOURCE,
-                                        $order_id, $order_metafields
-                                    )->failed())
-                                {
-                                    Log::warning(
-                                        "failed to add metafields to order #{$order_id}, please add this manually",
-                                        $order_metafields->toArray()
-                                    );
-                                }
+                                ShopifyAdmin::addMetafields(
+                                    ShopifyConstants::ORDER_RESOURCE,
+                                    $order_id,
+                                    collect()
+                                        ->push([
+                                            'key' => ZAPConstants::TRANSACTION_LIST_KEY,
+                                            'value' => $json_transactions,
+                                            'value_type' => ShopifyConstants::METAFIELD_VALUE_TYPE_JSON_STRING,
+                                            'namespace' => ZAPConstants::TRANSACTION_NAMESPACE
+                                        ])
+                                        ->push([
+                                            'key' => ZAPConstants::LAST_TRANSACTION_KEY,
+                                            'value' => json_encode($zap_new_transaction),
+                                            'value_type' => ShopifyConstants::METAFIELD_VALUE_TYPE_JSON_STRING,
+                                            'namespace' => ZAPConstants::TRANSACTION_NAMESPACE
+                                        ])
+                                );
                             }
 
                             // Update or add the point balance in the customer metafield
-                            $new_customer_balance = $customer_balance_metafield_id
-                                ? ShopifyAdmin::updateMetafieldById(
+                            if ($customer_balance_metafield_id) {
+                                ShopifyAdmin::updateMetafieldById(
                                     $customer_balance_metafield_id,
                                     $current_customer_balance
-                                )
-                                : ShopifyAdmin::addMetafields(
+                                );
+                            } else {
+                                ShopifyAdmin::addMetafields(
                                     ShopifyConstants::CUSTOMER_RESOURCE,
                                     $customer_id,
                                     collect()->push([
@@ -230,12 +230,6 @@ class WebhookController extends Controller
                                         'namespace' => ZAPConstants::MEMBER_NAMESPACE
                                     ])
                                 );
-
-                            if ($new_customer_balance->failed()) {
-                                Log::warning("failed to update customer balance metafield", [
-                                    'customer_id' => $customer_id,
-                                    'value' => $current_customer_balance,
-                                ]);
                             }
                         } else {
                             $success = false;

@@ -120,7 +120,7 @@ class MetafieldMixin
 
     public function lastZAPTransaction(): Closure
     {
-        return function (): Array
+        return function ()
         {
             return @json_decode($this->metafield(
                 ZAPConstants::TRANSACTION_NAMESPACE,

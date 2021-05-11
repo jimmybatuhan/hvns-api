@@ -194,6 +194,7 @@ class WebhookController extends Controller
                                     ->push([
                                         'key' => ZAPConstants::TRANSACTION_LIST_KEY,
                                         'value' => $transactions->toJson(),
+                                        'value_type' => ShopifyConstants::METAFIELD_VALUE_TYPE_JSON_STRING,
                                         'namespace' => ZAPConstants::TRANSACTION_NAMESPACE
                                     ])
                                     ->push([

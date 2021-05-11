@@ -3,6 +3,7 @@
 namespace App\Shopify;
 
 use App\Shopify\Mixins\MetafieldMixin;
+use App\Shopify\Constants;
 use Carbon\Carbon;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Collection;
@@ -37,7 +38,11 @@ class ShopifyAdmin
             Str::singular($resource) => [
                 'id' => $id,
                 'metafields' => $metafields->map(function ($metafield) {
-                    $metafield['value_type'] = 'string';
+
+                    if (! array_key_exists('value_type', $metafield)) {
+                        $metafield['value_type'] = Constants::METAFIELD_VALUE_TYPE_STRING;
+                    }
+
                     return $metafield;
                 })->toArray(),
             ],
@@ -46,13 +51,14 @@ class ShopifyAdmin
 
     public function updateMetafieldById(
         string $metafield_id,
-        string $value
+        string $value,
+        string $value_type = Constants::METAFIELD_VALUE_TYPE_STRING
     ): Response {
         return $this->http->put($this->admin_api . "/metafields/{$metafield_id}.json", [
             'metafield' => [
                 'id' => $metafield_id,
                 'value' => $value,
-                'value_type' => 'string',
+                'value_type' => $value_type,
             ]
         ]);
     }

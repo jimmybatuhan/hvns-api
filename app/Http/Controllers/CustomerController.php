@@ -159,11 +159,6 @@ class CustomerController extends Controller
             }],
             'first_name' => 'required|bail',
             'last_name' => 'required|bail',
-            'email' => 'required|email|bail',
-            'gender' => 'required|in:Male,Female|bail',
-            'gender_metafield_id' => 'required|bail',
-            'birthday' => 'required|date|bail',
-            'birthday_metafield_id' => 'required|bail',
             'mobile' => 'required|bail',
             'otp_ref' => 'required|bail',
             'otp_code' => 'required|bail',
@@ -173,9 +168,7 @@ class CustomerController extends Controller
             $shopify_response = ShopifyAdmin::updateCustomer(
                 $request->shopify_customer_id,
                 $request->first_name,
-                $request->last_name,
-                $request->email,
-                $request->mobile
+                $request->last_name
             );
 
             if (! $shopify_response->failed()) {
@@ -183,11 +176,8 @@ class CustomerController extends Controller
                     substr( $request->mobile, 1 ),
                     $request->first_name,
                     $request->last_name,
-                    $customer_data['customer']['email'] !== $request->email ? $request->email : '',
-                    $request->gender,
-                    new Carbon($request->birthday),
                     $request->otp_ref,
-                    $request->otp_code,
+                    $request->otp_code
                 );
 
                 $zap_data = $zap_response->collect();
@@ -213,15 +203,6 @@ class CustomerController extends Controller
                         ];
                     }
                 } else {
-                    ShopifyAdmin::updateMetafieldById(
-                        $request->birthday_metafield_id,
-                        $request->birthday
-                    );
-
-                    ShopifyAdmin::updateMetafieldById(
-                        $request->gender_metafield_id,
-                        $request->gender
-                    );
 
                     $response = [
                         'success' => true,

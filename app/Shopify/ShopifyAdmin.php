@@ -186,16 +186,12 @@ class ShopifyAdmin
     public function updateCustomer(
         string $shopify_customer_id,
         string $first_name,
-        string $last_name,
-        string $email,
-        string $phone
+        string $last_name
     ): Response {
         return $this->http->put($this->admin_api . "/customers/{$shopify_customer_id}.json", [
             'customer' => [
                 'first_name' => $first_name,
                 'last_name' => $last_name,
-                'email' => $email,
-                'phone' => $phone,
             ],
         ]);
     }

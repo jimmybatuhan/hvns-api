@@ -194,9 +194,6 @@ class ZAP extends ZAPApiHandler
         string $mobile_number,
         string $first_name,
         string $last_name,
-        string $email,
-        string $gender,
-        Carbon $birthday,
         string $otp_ref,
         string $otp_code
     ): Response {
@@ -204,13 +201,7 @@ class ZAP extends ZAPApiHandler
         $membership_data = [
             'firstName' => $first_name,
             'lastName' => $last_name,
-            'birthday' => $birthday->format('Y-m-d'),
-            'gender' => $gender,
         ];
-
-        if ($email !== '') {
-            $membership_data['email'] = $email;
-        }
 
         return $this->http->post($this->api_url . '/membership/update', [
             'mobileNumber' => $mobile_number,

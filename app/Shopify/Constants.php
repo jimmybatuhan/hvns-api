@@ -5,6 +5,8 @@ namespace App\Shopify;
 class Constants
 {
     public const MINIMUM_SUBTOTAL_TO_EARN = 500;
+    public const MAXIMUM_POINTS_TO_USE = 500;
+
     public const METAFIELD_INDEX_ID = 'id';
     public const METAFIELD_INDEX_VALUE = 'value';
     public const METAFIELD_INDEX_NAMESPACE = 'namespace';

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Shopify\Facades\ShopifyAdmin;
+use App\Shopify\Constants as ShopifyConstants;
 use App\ZAP\Constants as ZAPConstants;
 use App\ZAP\Facades\ZAP;
 use Illuminate\Http\JsonResponse;
@@ -35,7 +36,12 @@ class DiscountController extends Controller
                 //TODO: Change this to for loop to get the correct currency if they have multiples
                 $available_customer_points = $customer_balance['data']['currencies'][0]['validPoints'];
 
-                if ($request->points_to_use > $available_customer_points) {
+                //Limit the available customer points to 500
+                if ($available_customer_points > ShopifyConstants::MAXIMUM_POINTS_TO_USE) {
+                    $available_customer_points = ShopifyConstants::MAXIMUM_POINTS_TO_USE;
+                }
+
+                if ($request->points_to_use > $available_customer_points || $request->points_to_use < 0) {
                     $customer_current_points = strval($available_customer_points * -1);
                 }else {
                     $customer_current_points = strval($request->points_to_use * -1);

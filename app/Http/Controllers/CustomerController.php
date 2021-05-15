@@ -29,7 +29,8 @@ class CustomerController extends Controller
     {
         $shopify_customer_id = null;
         $zap_member_id = null;
-        $view = Redirect::to(config('app.shopify_store_url') . '/account/login');
+        $resp = [];
+
         $validator = Validator::make($request->all(), [
             'first_name' => 'required|bail',
             'last_name' => 'required|bail',
@@ -41,7 +42,8 @@ class CustomerController extends Controller
             'password_confirmation' => 'required|bail',
         ]);
 
-        $validator->after(function ($validator) use ($request, &$shopify_customer_id, &$zap_member_id) {
+        if (! $validator->fails()) {
+
             // Attempt to create a shopify customer
             $shopify_response = ShopifyAdmin::createCustomer(
                 $request->first_name,
@@ -80,8 +82,42 @@ class CustomerController extends Controller
                             $validator->errors()->add('mobile', 'mobile no. already exists.');
                             break;
                     }
+
+                    $resp = [
+                        "success" => false,
+                        "errors" => $validator->getMessageBag(),
+                    ];
+
                 } else {
                     $zap_member_id = $zap_response_body['data']['userId'];
+
+                    /**
+                     * Attach the member id  to the shopify customer resource
+                     */
+                    ShopifyAdmin::addMetafields(
+                        ShopifyConstants::CUSTOMER_RESOURCE,
+                        $shopify_customer_id,
+                        collect()->push([
+                            'key' => ZAPConstants::MEMBER_ID_KEY,
+                            'namespace' => ZAPConstants::MEMBER_NAMESPACE,
+                            'value' => $zap_member_id,
+                        ])
+                        ->push([
+                            'key' => ZAPConstants::MEMBER_BIRTHDAY_KEY,
+                            'namespace' => ZAPConstants::MEMBER_NAMESPACE,
+                            'value' => (new Carbon($request->birthday))->format('Y-m-d'),
+                        ])
+                        ->push([
+                            'key' => ZAPConstants::MEMBER_GENDER_KEY,
+                            'namespace' => ZAPConstants::MEMBER_NAMESPACE,
+                            'value' => $request->gender,
+                        ])
+                    );
+
+                    $resp = [
+                        "success" => true,
+                        "message" => "user created",
+                    ];
                 }
             } else {
                 collect($shopify_response_body["errors"])
@@ -91,44 +127,22 @@ class CustomerController extends Controller
                         $first_error = $item[0];
                         $validator->errors()->add($field, $field . ' ' . $first_error);
                     });
-            }
-        });
 
-        if (! $validator->fails()) {
-            /**
-             * Attach the member id  to the shopify customer resource
-             */
-            ShopifyAdmin::addMetafields(
-                ShopifyConstants::CUSTOMER_RESOURCE,
-                $shopify_customer_id,
-                collect()->push([
-                    'key' => ZAPConstants::MEMBER_ID_KEY,
-                    'namespace' => ZAPConstants::MEMBER_NAMESPACE,
-                    'value' => $zap_member_id,
-                ])
-                ->push([
-                    'key' => ZAPConstants::MEMBER_BIRTHDAY_KEY,
-                    'namespace' => ZAPConstants::MEMBER_NAMESPACE,
-                    'value' => (new Carbon($request->birthday))->format('Y-m-d'),
-                ])
-                ->push([
-                    'key' => ZAPConstants::MEMBER_GENDER_KEY,
-                    'namespace' => ZAPConstants::MEMBER_NAMESPACE,
-                    'value' => $request->gender,
-                ])
-            );
+                $resp = [
+                    "success" => false,
+                    "errors" => $validator->getMessageBag(),
+                ];
+            }
+
         } else {
-            /**
-             * Re render the register from with the errors, have to put the errors manually due to
-             * no session exists in the iframe.
-             */
-            $view = view('register', [
-                'errors' => (new ViewErrorBag())->put('default', $validator->getMessageBag()),
-                'inputs' => $request->all(),
-            ]);
+
+            $resp = [
+                "success" => false,
+                "errors" => $validator->getMessageBag(),
+            ];
         }
 
-        return $view;
+        return $resp;
     }
 
     public function postProcessUpdate(Request $request): JSONResponse
@@ -145,11 +159,6 @@ class CustomerController extends Controller
             }],
             'first_name' => 'required|bail',
             'last_name' => 'required|bail',
-            'email' => 'required|email|bail',
-            'gender' => 'required|in:Male,Female|bail',
-            'gender_metafield_id' => 'required|bail',
-            'birthday' => 'required|date|bail',
-            'birthday_metafield_id' => 'required|bail',
             'mobile' => 'required|bail',
             'otp_ref' => 'required|bail',
             'otp_code' => 'required|bail',
@@ -159,9 +168,7 @@ class CustomerController extends Controller
             $shopify_response = ShopifyAdmin::updateCustomer(
                 $request->shopify_customer_id,
                 $request->first_name,
-                $request->last_name,
-                $request->email,
-                $request->mobile
+                $request->last_name
             );
 
             if (! $shopify_response->failed()) {
@@ -169,11 +176,8 @@ class CustomerController extends Controller
                     substr( $request->mobile, 1 ),
                     $request->first_name,
                     $request->last_name,
-                    $customer_data['customer']['email'] !== $request->email ? $request->email : '',
-                    $request->gender,
-                    new Carbon($request->birthday),
                     $request->otp_ref,
-                    $request->otp_code,
+                    $request->otp_code
                 );
 
                 $zap_data = $zap_response->collect();
@@ -199,15 +203,6 @@ class CustomerController extends Controller
                         ];
                     }
                 } else {
-                    ShopifyAdmin::updateMetafieldById(
-                        $request->birthday_metafield_id,
-                        $request->birthday
-                    );
-
-                    ShopifyAdmin::updateMetafieldById(
-                        $request->gender_metafield_id,
-                        $request->gender
-                    );
 
                     $response = [
                         'success' => true,

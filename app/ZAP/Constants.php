@@ -16,6 +16,8 @@ class Constants
 
     public const VOID_POINT_STATUS = 'void';
     public const EARN_POINT_STATUS = 'earned';
+    public const USE_POINT_STATUS = 'points_used';
+    public const RETURNED_POINT_STATUS = 'points_returned';
 
     public const LAST_TRANSACTION_KEY = 'last_transaction';
     public const TRANSACTION_LIST_KEY = 'transaction_list';

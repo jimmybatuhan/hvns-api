@@ -195,4 +195,10 @@ class ShopifyAdmin
             ],
         ]);
     }
+
+    public function getCustomerOrders(string $customer_id): Response
+    {
+        $fields = implode(',', ['id', 'name', 'total_price', 'fulfillment_status', 'created_at']);
+        return $this->http->get($this->admin_api . "/customers/{$customer_id}/orders.json?fields={$fields}");
+    }
 }

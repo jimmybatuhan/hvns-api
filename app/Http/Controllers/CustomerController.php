@@ -344,12 +344,15 @@ class CustomerController extends Controller
             'end_start_filter' => 'date|nullable',
         ]);
 
+        $start_date = (new Carbon($request->start_date_filter))->format('Y-m-d');
+        $end_date = (new Carbon($request->end_date_filter))->format('Y-m-d');
+
         $customer_id = $request->customer_id;
         $customer_mobile = $request->mobile_no;
-        $member_trasactions_response = ZAP::getUserTransactions($customer_mobile);
         $zap_transactions = collect([]);
         $order_with_metafield = collect([]);
-        $customer_order_response = ShopifyAdmin::getCustomerOrders($customer_id);
+        $member_trasactions_response = ZAP::getUserTransactions($customer_mobile);
+        $customer_order_response = ShopifyAdmin::getCustomerOrders($customer_id, $start_date, $end_date);
 
         if ($customer_order_response->ok()) {
             $shopify_orders = collect($customer_order_response->collect()['orders']);
@@ -392,6 +395,13 @@ class CustomerController extends Controller
                 'point_status' => $transaction['status'],
                 'zap_transaction_number' => $transaction['refNo']
             ]);
+
+            if ($start_date && $end_date) {
+                $zap_transactions = $zap_transactions
+                    ->filter(fn ($transaction) =>
+                        (new Carbon($transaction['transaction_date']))->between($start_date, $end_date)
+                );
+            }
         }
 
         $customer_transactions = $order_with_metafield

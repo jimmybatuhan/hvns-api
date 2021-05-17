@@ -196,9 +196,18 @@ class ShopifyAdmin
         ]);
     }
 
-    public function getCustomerOrders(string $customer_id): Response
+    public function getCustomerOrders(string $customer_id, ?string $start_at, ?string $end_at): Response
     {
-        $fields = implode(',', ['id', 'name', 'total_price', 'fulfillment_status', 'created_at']);
-        return $this->http->get($this->admin_api . "/customers/{$customer_id}/orders.json?fields={$fields}");
+        $fields = ['id', 'name', 'total_price', 'fulfillment_status', 'created_at'];
+        $filter = '';
+        if ($start_at && $end_at) {
+            $filter = "created_at_min={$start_at}&created_at_max={$end_at}";
+        }
+
+        $fields = 'fields=' . implode(',', $fields);
+
+        $query = "{$fields}&{$filter}";
+
+        return $this->http->get($this->admin_api . "/customers/{$customer_id}/orders.json?{$query}");
     }
 }

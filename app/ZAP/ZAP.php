@@ -162,11 +162,11 @@ class ZAP extends ZAPApiHandler
         ]);
     }
 
-    public function getUserTransactions(string $mobile_number, string $branch_id): Response
+    public function getUserTransactions(string $mobile_number): Response
     {
         return $this->http->post($this->api_url . '/user/transactions', [
             'mobileNumber' => $mobile_number,
-            'branchId' => $branch_id,
+            'branchId' => $this->branch_id,
         ]);
         // TODO handle error response later on, focusing on the happy path first.
         // ->throw(fn ($response, $e) => self::handleHttpError($response, $e))

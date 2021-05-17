@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ViewErrorBag;
+use Illuminate\Validation\Validator as ValidationValidator;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -271,7 +272,6 @@ class CustomerController extends Controller
                             'success' => false,
                             'error' => 'Unexpected Error'
                         ];
-                        break;
                 }
             }
         } else {
@@ -335,9 +335,71 @@ class CustomerController extends Controller
         return $view;
     }
 
-    public function getZAPMemberTransactions(): View
+    public function getZAPMemberTransactions(Request $request): JsonResponse
     {
-        return view('member-transactions');
+        Validator::make($request->all(), [
+            'customer_id' => 'required',
+            'mobile_no' => 'required',
+            'start_date_filter' => 'date|nullable',
+            'end_start_filter' => 'date|nullable',
+        ]);
+
+        $customer_id = $request->customer_id;
+        $customer_mobile = $request->mobile_no;
+        $member_trasactions_response = ZAP::getUserTransactions($customer_mobile);
+        $zap_transactions = collect([]);
+        $order_with_metafield = collect([]);
+        $customer_order_response = ShopifyAdmin::getCustomerOrders($customer_id);
+
+        if ($customer_order_response->ok()) {
+            $shopify_orders = collect($customer_order_response->collect()['orders']);
+            $order_with_metafield = $shopify_orders->map(function (array $order) {
+                $order_metafields = ShopifyAdmin::fetchMetafield($order['id'], ShopifyConstants::ORDER_RESOURCE);
+                $last_zap_transaction = $order_metafields->lastZAPTransaction() ?? [];
+                $last_zap_status = $last_zap_transaction[ZAPConstants::TRANSACTION_STATUS_KEY] ?? null;
+                $last_zap_point = $last_zap_transaction[ZAPConstants::TRANSACTION_POINTS_KEY] ?? 0.00;
+                $earned = 0.00;
+                $redeemed = 0.00;
+
+                if ($last_zap_status === ZAPConstants::USE_POINT_STATUS) {
+                    $redeemed = $last_zap_point;
+                } else if ($last_zap_status === ZAPConstants::EARN_POINT_STATUS) {
+                    $earned = $last_zap_point;
+                }
+
+                return [
+                    'order_no' => $order['name'],
+                    'transaction_date' => $order['created_at'],
+                    'branch' => '',
+                    'total' => $order['total_price'],
+                    'points_earned' => $earned,
+                    'points_redeemed' => $redeemed,
+                    'point_status' => $last_zap_status,
+                    'zap_transaction_number' => $last_zap_transaction[ZAPConstants::TRANSACTION_REFERENCE_KEY] ?? null
+                ];
+            });
+        }
+
+        if ($member_trasactions_response->ok()) {
+            $transactions = collect($member_trasactions_response->collect()['data']['transactions']);
+            $zap_transactions = $transactions->map(fn (array $transaction) => [
+                'order_no' => $transaction['refNo'],
+                'transaction_date' => $transaction['dateProcessed'],
+                'branch' => $transaction['branchName'],
+                'total' => $transaction['amount'],
+                'points_earned' => $transaction['points'][0]['earned'],
+                'points_redeemed' => $transaction['points'][0]['redeemed'],
+                'point_status' => $transaction['status'],
+                'zap_transaction_number' => $transaction['refNo']
+            ]);
+        }
+
+        $customer_transactions = $order_with_metafield
+            ->merge($zap_transactions)
+            ->sortBy(fn ($transaction) => $transaction['transaction_date'])
+            ->toJSon();
+
+        return response()->json($customer_transactions);
     }
 
     public function getZAPMemberData(Request $request): View

@@ -1,6 +1,9 @@
 <?php
 
 return [
+
+    'api_secret_key' => env('API_SECRET_KEY', ''),
+    'api_secret_salt' => env('API_SECRET_SALT', ''),
     'sheet_id' => env('GOOGLE_SHEET_ID', null),
 
     'shopify_api_version' => env('SHOPIFY_API_VERSION', null),

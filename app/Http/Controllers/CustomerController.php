@@ -406,8 +406,7 @@ class CustomerController extends Controller
 
         $customer_transactions = $order_with_metafield
             ->merge($zap_transactions)
-            ->sortBy(fn ($transaction) => $transaction['transaction_date'])
-            ->toJSon();
+            ->sortBy(fn ($transaction) => $transaction['transaction_date']);
 
         return response()->json($customer_transactions);
     }

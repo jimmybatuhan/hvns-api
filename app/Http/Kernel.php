@@ -65,5 +65,6 @@ class Kernel extends HttpKernel
         'shopify-verify-webhook' => \App\Http\Middleware\VerifyShopifyWebhook::class,
         'cors' => \App\Http\Middleware\CorsHandler::class,
         'log-route' => \App\Http\Middleware\LogRoute::class,
+        'api-auth' =>  \App\Http\Middleware\APIAuth::class,
     ];
 }

@@ -21,7 +21,7 @@ Route::get('/', function () {
     abort(404);
 });
 
-Route::middleware(['cors', 'log-route', 'api-auth'])->group(function () {
+Route::middleware(['api-auth', 'log-route', 'cors'])->group(function () {
     Route::post('verify-otp', [CustomerController::class, 'verifyOTP']);
     Route::post('signup', [CustomerController::class, 'postProcessRegistration'])->name('register');
 

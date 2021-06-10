@@ -13,6 +13,7 @@ class Constants
     public const MEMBER_ID_KEY = 'zap_member_id';
     public const MEMBER_NAMESPACE = 'zap_member';
     public const MEMBER_POINTS_KEY = 'member_total_points';
+    public const MEMBER_SINCE_KEY = 'member_since';
 
     public const VOID_POINT_STATUS = 'void';
     public const EARN_POINT_STATUS = 'earned';

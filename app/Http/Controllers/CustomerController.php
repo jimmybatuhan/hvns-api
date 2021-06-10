@@ -10,22 +10,13 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ViewErrorBag;
-use Illuminate\Validation\Validator as ValidationValidator;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
 class CustomerController extends Controller
 {
-    public function registerForm(): View
-    {
-        Log::info('test');
-
-        return view('register');
-    }
-
     public function postProcessRegistration(Request $request)
     {
         $shopify_customer_id = null;
@@ -91,6 +82,7 @@ class CustomerController extends Controller
 
                 } else {
                     $zap_member_id = $zap_response_body['data']['userId'];
+                    $shopify_create_at = $shopify_response_body["customer"]["created_at"];
 
                     /**
                      * Attach the member id  to the shopify customer resource
@@ -102,6 +94,16 @@ class CustomerController extends Controller
                             'key' => ZAPConstants::MEMBER_ID_KEY,
                             'namespace' => ZAPConstants::MEMBER_NAMESPACE,
                             'value' => $zap_member_id,
+                        ])
+                        ->push([
+                            'key' => ZAPConstants::MEMBER_POINTS_KEY,
+                            'namespace' => ZAPConstants::MEMBER_NAMESPACE,
+                            'value' => 0.00,
+                        ])
+                        ->push([
+                            'key' => ZAPConstants::MEMBER_SINCE_KEY,
+                            'namespace' => ZAPConstants::MEMBER_NAMESPACE,
+                            'value' => $shopify_create_at,
                         ])
                         ->push([
                             'key' => ZAPConstants::MEMBER_BIRTHDAY_KEY,

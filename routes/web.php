@@ -4,7 +4,6 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
-use Revolution\Google\Sheets\Sheets;
 
 /*
 |--------------------------------------------------------------------------
@@ -21,7 +20,7 @@ Route::get('/', function () {
     abort(404);
 });
 
-Route::middleware(['api-auth', 'log-route', 'cors'])->group(function () {
+Route::middleware(['log-route', 'cors'])->group(function () {
     Route::post('verify-otp', [CustomerController::class, 'verifyOTP']);
     Route::post('signup', [CustomerController::class, 'postProcessRegistration'])->name('register');
 
@@ -37,7 +36,7 @@ Route::middleware(['api-auth', 'log-route', 'cors'])->group(function () {
 });
 
 Route::prefix('shopify')->middleware(['shopify-verify-webhook', 'log-route'])->group(function () {
-    Route::post('fulfill', [WebhookController::class, 'onOrderFulfilled']);
+    Route::post('order-create', [WebhookController::class, 'onOrderCreate']);
     Route::post('fulfillment-update', [WebhookController::class, 'onFulfillmentUpdate']);
 });
 

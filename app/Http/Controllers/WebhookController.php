@@ -152,7 +152,7 @@ class WebhookController extends Controller
         return response()->json(['success' => $success], $response_status);
     }
 
-    public function onOrderFulfilled(Request $request): JsonResponse
+    public function onOrderCreate(Request $request): JsonResponse
     {
         $success = true;
         $status = Response::HTTP_OK;
@@ -162,9 +162,9 @@ class WebhookController extends Controller
         $line_items = collect($body['line_items']);
         $metafields = collect([
             'order_id' => $order_id,
-            'sub_total' => floatval($body['current_subtotal_price']),
+            'sub_total' => floatval($body['subtotal_price']),
         ]);
-        $current_subtotal_price = $body['current_subtotal_price'];
+        $current_subtotal_price = $body['subtotal_price'];
         $dicount_codes = $body['discount_codes'];
 
         if (Arr::exists($body, 'customer')) {

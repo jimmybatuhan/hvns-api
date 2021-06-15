@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace  App\Http\Controllers;
 
 use App\Shopify\Constants as ShopifyConstants;
 use App\Shopify\Facades\ShopifyAdmin;
@@ -9,7 +9,6 @@ use App\ZAP\Facades\ZAP;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\View\View;
@@ -17,11 +16,52 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CustomerController extends Controller
 {
+    private function addMetafieldsToNewCustomer(
+        string $shopify_id,
+        string $zap_id,
+        float $balance,
+        string $gender,
+        string $birthday
+    ): void {
+        /**
+         * Attach the member id  to the shopify customer resource
+         */
+        ShopifyAdmin::addMetafields(
+            ShopifyConstants::CUSTOMER_RESOURCE,
+            $shopify_id,
+            collect()->push([
+                'key' => ZAPConstants::MEMBER_ID_KEY,
+                'namespace' => ZAPConstants::MEMBER_NAMESPACE,
+                'value' => $zap_id,
+            ])
+            ->push([
+                'key' => ZAPConstants::MEMBER_POINTS_KEY,
+                'namespace' => ZAPConstants::MEMBER_NAMESPACE,
+                'value' => $balance,
+            ])
+            ->push([
+                'key' => ZAPConstants::MEMBER_SINCE_KEY,
+                'namespace' => ZAPConstants::MEMBER_NAMESPACE,
+                'value' => now()->format('F d, Y'),
+            ])
+            ->push([
+                'key' => ZAPConstants::MEMBER_BIRTHDAY_KEY,
+                'namespace' => ZAPConstants::MEMBER_NAMESPACE,
+                'value' => (new Carbon($birthday))->format('Y-m-d'),
+            ])
+            ->push([
+                'key' => ZAPConstants::MEMBER_GENDER_KEY,
+                'namespace' => ZAPConstants::MEMBER_NAMESPACE,
+                'value' => $gender,
+            ])
+        );
+    }
+
     public function postProcessRegistration(Request $request)
     {
         $shopify_customer_id = null;
         $zap_member_id = null;
-        $resp = [];
+        $response = [];
 
         $validator = Validator::make($request->all(), [
             'first_name' => 'required|bail',
@@ -63,61 +103,57 @@ class CustomerController extends Controller
                 $zap_response_body = $zap_response->collect();
 
                 if ($zap_response->failed()) {
-                    // Delete the created customer in shopify since ZAP fails to register the customer
-                    ShopifyAdmin::deleteCustomer($shopify_customer_id);
+                    $zap_error_code = $zap_response_body["errorCode"];
 
-                    switch ($zap_response_body["errorCode"]) {
-                        case ZAPConstants::EMAIL_ALREADY_EXISTS:
-                            $validator->errors()->add('email', 'email already exists.');
-                            break;
-                        case ZAPConstants::MOBILE_ALREADY_EXISTS:
-                            $validator->errors()->add('mobile', 'mobile no. already exists.');
-                            break;
+                    if ($zap_error_code === ZAPConstants::EMAIL_ALREADY_EXISTS) {
+                        // Delete the created customer in shopify since ZAP fails to register the customer
+                        ShopifyAdmin::deleteCustomer($shopify_customer_id);
+
+                        $validator->errors()->add('email', 'email already exists.');
+                        $response = [
+                            "success" => false,
+                            "errors" => $validator->getMessageBag(),
+                        ];
+
+                    } else if ($zap_error_code === ZAPConstants::MOBILE_ALREADY_EXISTS) {
+                        // if the mobile number already exists, get the member information instead
+                        $zap_membership_response = ZAP::getMembershipData($request->mobile);
+                        $shopify_customer_data = $zap_membership_response->collect();
+                        $zap_member_id = $shopify_customer_data['data']['userId'];
+
+                        // get the member balance
+                        $zap_member_balance = ZAP::inquireBalance($request->mobile);
+                        $zap_member_balance_data = $zap_member_balance->collect();
+                        $customer_current_points = ! empty($zap_member_balance_data['data']['currencies'])
+                            ? $zap_member_balance_data['data']['currencies'][0]['validPoints']
+                            : 0.00;
+
+                        $this->addMetafieldsToNewCustomer(
+                            $shopify_customer_id,
+                            $zap_member_id,
+                            $customer_current_points,
+                            $request->gender,
+                            $request->birthday
+                        );
+
+                        $response = [
+                            "success" => true,
+                            "message" => "user created",
+                        ];
                     }
-
-                    $resp = [
-                        "success" => false,
-                        "errors" => $validator->getMessageBag(),
-                    ];
-
                 } else {
                     $zap_member_id = $zap_response_body['data']['userId'];
                     $shopify_create_at = $shopify_response_body["customer"]["created_at"];
 
-                    /**
-                     * Attach the member id  to the shopify customer resource
-                     */
-                    ShopifyAdmin::addMetafields(
-                        ShopifyConstants::CUSTOMER_RESOURCE,
+                    $this->addMetafieldsToNewCustomer(
                         $shopify_customer_id,
-                        collect()->push([
-                            'key' => ZAPConstants::MEMBER_ID_KEY,
-                            'namespace' => ZAPConstants::MEMBER_NAMESPACE,
-                            'value' => $zap_member_id,
-                        ])
-                        ->push([
-                            'key' => ZAPConstants::MEMBER_POINTS_KEY,
-                            'namespace' => ZAPConstants::MEMBER_NAMESPACE,
-                            'value' => 0.00,
-                        ])
-                        ->push([
-                            'key' => ZAPConstants::MEMBER_SINCE_KEY,
-                            'namespace' => ZAPConstants::MEMBER_NAMESPACE,
-                            'value' => $shopify_create_at,
-                        ])
-                        ->push([
-                            'key' => ZAPConstants::MEMBER_BIRTHDAY_KEY,
-                            'namespace' => ZAPConstants::MEMBER_NAMESPACE,
-                            'value' => (new Carbon($request->birthday))->format('Y-m-d'),
-                        ])
-                        ->push([
-                            'key' => ZAPConstants::MEMBER_GENDER_KEY,
-                            'namespace' => ZAPConstants::MEMBER_NAMESPACE,
-                            'value' => $request->gender,
-                        ])
+                        $zap_member_id,
+                        0.00,
+                        $request->gender,
+                        $request->birthday
                     );
 
-                    $resp = [
+                    $response = [
                         "success" => true,
                         "message" => "user created",
                     ];
@@ -130,22 +166,19 @@ class CustomerController extends Controller
                         $first_error = $item[0];
                         $validator->errors()->add($field, $field . ' ' . $first_error);
                     });
-
-                $resp = [
+                $response = [
                     "success" => false,
                     "errors" => $validator->getMessageBag(),
                 ];
             }
-
         } else {
-
-            $resp = [
+            $response = [
                 "success" => false,
                 "errors" => $validator->getMessageBag(),
             ];
         }
 
-        return $resp;
+        return $response;
     }
 
     public function postProcessUpdate(Request $request): JSONResponse
@@ -206,7 +239,6 @@ class CustomerController extends Controller
                         ];
                     }
                 } else {
-
                     $response = [
                         'success' => true,
                         'message' => 'Customer Updated',
@@ -288,7 +320,7 @@ class CustomerController extends Controller
 
     public function requestUpdateOTP(Request $request): JSONResponse
     {
-        $resp = [];
+        $response = [];
 
         $validator = Validator::make($request->all(), [
             'mobile' => 'required',
@@ -300,19 +332,19 @@ class CustomerController extends Controller
                 substr($request->mobile, 1)
             );
             $otp_data = $zap_resp->collect();
-            $resp = [
+            $response = [
                 'success' => true,
                 'otp_ref_id' => $otp_data['data']['refId'],
             ];
 
         } else {
-            $resp = [
+            $response = [
                 'success' => false,
                 'errors' => $validator->getMessageBag(),
             ];
         }
 
-        return response()->json($resp);
+        return response()->json($response);
     }
 
     public function verifyOTP(Request $request)
@@ -411,11 +443,5 @@ class CustomerController extends Controller
             ->sortBy(fn ($transaction) => $transaction['transaction_date']);
 
         return response()->json($customer_transactions);
-    }
-
-    public function getZAPMemberData(Request $request): View
-    {
-        // $member = ZAP::getMembershipData($request->mobile_number);
-        return view('member-data');
     }
 }

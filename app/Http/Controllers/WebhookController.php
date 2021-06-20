@@ -227,7 +227,7 @@ class WebhookController extends Controller
                         $this->createOrUpdateCustomerBalanceMetafield(
                             $customer_id,
                             $customer_balance_metafield_id,
-                            $current_customer_balance
+                            $current_customer_balance - $points_used
                         );
                     } else {
                         Log::critical("failed to deduct used points of fulfilled order #{$order_id}", [

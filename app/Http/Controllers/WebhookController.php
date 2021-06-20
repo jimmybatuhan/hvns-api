@@ -158,14 +158,10 @@ class WebhookController extends Controller
         $status = Response::HTTP_OK;
         $body = $request->all();
         $order_id = $body['id'];
-        $customer = $body['customer'];
-        $line_items = collect($body['line_items']);
         $metafields = collect([
             'order_id' => $order_id,
             'sub_total' => floatval($body['subtotal_price']),
         ]);
-        $current_subtotal_price = $body['subtotal_price'];
-        $dicount_codes = $body['discount_codes'];
 
         if (Arr::exists($body, 'customer')) {
             $customer = $body['customer'];
@@ -174,10 +170,8 @@ class WebhookController extends Controller
             $order_metafields = ShopifyAdmin::fetchMetafield($order_id, ShopifyConstants::ORDER_RESOURCE);
             $customer_metafields = ShopifyAdmin::fetchMetafield($customer_id, ShopifyConstants::CUSTOMER_RESOURCE);
             $customer_member_id = $customer_metafields->ZAPMemberId(ShopifyConstants::METAFIELD_INDEX_VALUE);
-            $customer_balance_metafield_id = $customer_metafields
-                ->ZAPMemberTotalPoints(ShopifyConstants::METAFIELD_INDEX_ID);
-            $zap_discount = collect($dicount_codes)
-                ->filter( fn ($discount) => $discount['code'] === ZAPConstants::DISCOUNT_PREFIX . $customer_id)
+            $zap_discount = collect($body['discount_codes'])
+                ->filter(fn ($discount) => $discount['code'] === ZAPConstants::DISCOUNT_PREFIX . $customer_id)
                 ->first();
 
             // if customer has a member id from ZAP, this means we should add a point in its account
@@ -188,7 +182,7 @@ class WebhookController extends Controller
                 $customer_balance = $current_balance_response->collect();
                 $customer_currencies = $customer_balance['data']['currencies'];
                 $current_customer_balance = ! empty($customer_currencies) ? $customer_currencies[0]['validPoints'] : 0.00;
-                $transactions = collect([]);
+                $transactions = collect();
                 $transactions_metafield_id = null;
 
                 // If transaction list is not empty, decode else create a an empty collection
@@ -205,6 +199,8 @@ class WebhookController extends Controller
                     if ($use_points_response->ok()) {
                         $use_points_response_body = $use_points_response->collect();
                         $zap_transaction_reference_no = $use_points_response_body['data']['refNo'];
+                        $customer_balance_metafield_id = $customer_metafields
+                            ->ZAPMemberTotalPoints(ShopifyConstants::METAFIELD_INDEX_ID);
                         $zap_use_point_transaction = [
                             ZAPConstants::TRANSACTION_REFERENCE_KEY => $zap_transaction_reference_no,
                             ZAPConstants::TRANSACTION_POINTS_KEY => $points_used,
@@ -230,73 +226,31 @@ class WebhookController extends Controller
                             $current_customer_balance - $points_used
                         );
                     } else {
-                        Log::critical("failed to deduct used points of fulfilled order #{$order_id}", [
+                        Log::critical("failed to deduct used points of order #{$order_id}", [
                             'discount_code' => $zap_discount['code'],
                             'amount' => $points_used,
                             'customer_id' => $customer_id,
                         ]);
                     }
                 } else {
-                    if (floatval($current_subtotal_price) >= ShopifyConstants::MINIMUM_SUBTOTAL_TO_EARN) {
-                        $total_points = $line_items->map(fn (array $item) => ShopPromo::calculatePoints($item))->sum();
-                        $zap_add_points_response = ZAP::addPoints($total_points, $mobile, $metafields->toJson());
+                    if (floatval($body['subtotal_price']) >= ShopifyConstants::MINIMUM_SUBTOTAL_TO_EARN) {
+                        /**
+                         * compute the total points to be earned, (points will be added to zap when order is fulfilled)
+                         */
+                        $line_items = collect($body['line_items']);
 
-                        if ($current_balance_response->ok()) {
-                            if ($zap_add_points_response->ok()) {
-                                $add_points_response_body = $zap_add_points_response->collect();
-                                $zap_transaction_reference_no = $add_points_response_body['data']['refNo'];
-                                $zap_new_transaction = [
-                                    ZAPConstants::TRANSACTION_REFERENCE_KEY => $zap_transaction_reference_no,
-                                    ZAPConstants::TRANSACTION_POINTS_KEY => $total_points,
-                                    ZAPConstants::TRANSACTION_STATUS_KEY => ZAPConstants::EARN_POINT_STATUS,
-                                    'fulfilled_at' => Carbon::now()->toIso8601String(),
-                                ];
-
-                                // Add this new transaction to the collection
-                                $transactions->push($zap_new_transaction);
-
-                                // Add or update the collection of transaction in the Order's metafield
-                                $this->createOrUpdateTransactionMetafield(
-                                    $order_id,
-                                    $order_metafields,
-                                    $zap_new_transaction,
-                                    $transactions_metafield_id,
-                                    $transactions
-                                );
-
-                                $this->createOrUpdateCustomerBalanceMetafield(
-                                    $customer_id,
-                                    $customer_balance_metafield_id,
-                                    $current_customer_balance + $total_points
-                                );
-
-                            } else {
-                                $success = false;
-                                $status = Response::HTTP_INTERNAL_SERVER_ERROR;
-                                Log::critical("failed to add points to fulfilled order #{$order_id}", [
-                                    'zap_add_points_response' => $zap_add_points_response->json(),
-                                    'transaction_metafields' => $metafields->toJson(),
-                                    'calculated_points' => $total_points,
-                                    'customer_id' => $customer_id,
-                                ]);
-                            }
-                        } else {
-                            $success = false;
-                            $status = Response::HTTP_INTERNAL_SERVER_ERROR;
-                            Log::critical("failed to get customer points to fulfilled order #{$order_id}", [
-                                'mobile' => $mobile,
-                                'customer_id' => $customer_id,
-                            ]);
-                        }
-                    } else {
-                        Log::warning("fulfilled order #{$order_id} did not meet the minimum subtotal to earn points");
+                        ShopifyAdmin::addMetafields(
+                            ShopifyConstants::ORDER_RESOURCE,
+                            $order_id,
+                            collect()->push([
+                                'key' => ZAPConstants::POINTS_TO_EARN_KEY,
+                                'value' => $line_items->map(fn (array $item) => ShopPromo::calculatePoints($item))->sum(),
+                                'namespace' => ZAPConstants::TRANSACTION_NAMESPACE
+                            ])
+                        );
                     }
                 }
-            } else {
-                Log::warning("order #{$order_id} has been fulfilled without a zap member information");
             }
-        } else {
-            Log::warning("order #{$order_id} has been fulfilled without a customer information");
         }
 
         return response()->json(['success' => $success], $status);
@@ -398,6 +352,12 @@ class WebhookController extends Controller
                         'key' => ZAPConstants::LAST_TRANSACTION_KEY,
                         'value' => json_encode($last_zap_transaction),
                         'value_type' => ShopifyConstants::METAFIELD_VALUE_TYPE_JSON_STRING,
+                        'namespace' => ZAPConstants::TRANSACTION_NAMESPACE
+                    ])
+                    ->push([
+                        'key' => ZAPConstants::POINTS_TO_EARN_KEY,
+                        'value' => $points_to_earn,
+                        'value_type' => ShopifyConstants::METAFIELD_VALUE_TYPE_STRING,
                         'namespace' => ZAPConstants::TRANSACTION_NAMESPACE
                     ])
             );

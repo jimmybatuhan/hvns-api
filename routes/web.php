@@ -37,7 +37,9 @@ Route::middleware(['log-route', 'cors'])->group(function () {
 
 Route::prefix('shopify')->middleware(['shopify-verify-webhook', 'log-route'])->group(function () {
     Route::post('order-create', [WebhookController::class, 'onOrderCreate']);
-    Route::post('fulfillment-update', [WebhookController::class, 'onFulfillmentUpdate']);
+    Route::post('order-canceled', [WebhookController::class, 'onOrderCanceled']);
+    Route::post('order-update', [WebhookController::class, 'onOrderUpdate']);
+    Route::post('order-fulfill', [WebhookController::class, 'onOrderFulfill']);
 });
 
 // Route::get('/dashboard', function () {

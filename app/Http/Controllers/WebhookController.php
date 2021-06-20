@@ -586,12 +586,6 @@ class WebhookController extends Controller
                         'value_type' => ShopifyConstants::METAFIELD_VALUE_TYPE_JSON_STRING,
                         'namespace' => ZAPConstants::TRANSACTION_NAMESPACE
                     ])
-                    ->push([
-                        'key' => ZAPConstants::POINTS_TO_EARN_KEY,
-                        'value' => $points_to_earn,
-                        'value_type' => ShopifyConstants::METAFIELD_VALUE_TYPE_STRING,
-                        'namespace' => ZAPConstants::TRANSACTION_NAMESPACE
-                    ])
             );
         }
     }

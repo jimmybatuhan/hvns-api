@@ -27,7 +27,7 @@ class DiscountController extends Controller
             // generate discount code name
             $shopify_customer_id = $request->shopify_customer_id;
             $discount_code = $this->generateNameForDiscountCode($shopify_customer_id);
-            $discount_name = ZAPConstants::DISCOUNT_PREFIX . $discount_code;
+            $discount_name = ZAPConstants::DISCOUNT_PREFIX . $shopify_customer_id;
             // get customer balance (points)
             $zap_response = ZAP::inquireBalance($request->mobile);
             $customer_balance = $zap_response->collect();
@@ -172,6 +172,6 @@ class DiscountController extends Controller
     private function generateNameForDiscountCode(string $customer_id): String
     {
         //change if they want a different naming convention for the disount code
-        return $customer_id;
+        return ZAPConstants::DISCOUNT_PREFIX . $customer_id;
     }
 }

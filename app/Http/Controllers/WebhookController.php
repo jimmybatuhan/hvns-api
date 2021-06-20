@@ -186,7 +186,8 @@ class WebhookController extends Controller
                 $current_balance_response = ZAP::inquireBalance($mobile);
                 $order_transaction_list = $order_metafields->ZAPTransactions();
                 $customer_balance = $current_balance_response->collect();
-                $current_customer_balance = $customer_balance['data']['currencies'][0]['validPoints'];
+                $customer_currencies = $customer_balance['data']['currencies'];
+                $current_customer_balance = ! empty($customer_currencies) ? $customer_currencies[0]['validPoints'] : 0.00;
                 $transactions = collect([]);
                 $transactions_metafield_id = null;
 

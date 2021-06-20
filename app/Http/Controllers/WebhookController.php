@@ -256,9 +256,141 @@ class WebhookController extends Controller
         return response()->json(['success' => $success], $status);
     }
 
-    public function onOrderCanceled(Request $reqest): JsonResponse
+    public function onOrderCanceled(Request $request): JsonResponse
     {
+        $success = true;
+        $status = Response::HTTP_OK;
+        $body = $request->all();
+        $order_id = $body['id'];
+        $customer = $body['customer'];
+        $dicount_codes = $body['discount_codes'];
 
+        if (Arr::exists($body, 'customer')) {
+            $customer = $body['customer'];
+            $customer_id = $customer['id'];
+            $mobile = substr($customer['phone'], 1);
+            $order_metafields = ShopifyAdmin::fetchMetafield($order_id, ShopifyConstants::ORDER_RESOURCE);
+            $customer_metafields = ShopifyAdmin::fetchMetafield($customer_id, ShopifyConstants::CUSTOMER_RESOURCE);
+            $customer_member_id = $customer_metafields->ZAPMemberId(ShopifyConstants::METAFIELD_INDEX_VALUE);
+            $customer_balance_metafield_id = $customer_metafields
+                ->ZAPMemberTotalPoints(ShopifyConstants::METAFIELD_INDEX_ID);
+            $zap_discount = collect($dicount_codes)
+                ->filter( fn ($discount) => $discount['code'] === ZAPConstants::DISCOUNT_PREFIX . $customer_id)
+                ->first();
+
+            // if customer has a member id from ZAP, this means we should do the next process
+            // else ignore the event.
+            if ($customer_member_id) {
+                $order_transaction_list = $order_metafields->ZAPTransactions();
+                $transactions = collect([]);
+                $transactions_metafield_id = null;
+                $last_zap_transaction = $order_metafields->lastZAPTransaction();
+                $last_zap_trans_status = $last_zap_transaction[ZAPConstants::TRANSACTION_STATUS_KEY];
+                $last_transaction_points = $last_zap_transaction[ZAPConstants::TRANSACTION_POINTS_KEY];
+                $last_trans_meta_id = $order_metafields->lastZAPTransactionMetaId();
+
+                // If transaction list is not empty, decode else create a an empty collection
+                if ($order_transaction_list) {
+                    $transactions_metafield_id = $order_transaction_list[ShopifyConstants::METAFIELD_INDEX_ID];
+                    $transactions = collect(json_decode($order_transaction_list[ShopifyConstants::METAFIELD_INDEX_VALUE], true));
+                }
+                // if the customer used their zap points as a discount, if order is cancelled, we will return the points
+                if ($zap_discount) {
+                    $points_used = $zap_discount['amount'];
+                    $use_points_response = ZAP::addPoints($points_used, $mobile);
+
+                    if ($use_points_response->ok()) {
+                        $use_points_response_body = $use_points_response->collect();
+                        $zap_transaction_reference_no = $use_points_response_body['data']['refNo'];
+                        $zap_return_point_transaction = [
+                            ZAPConstants::TRANSACTION_REFERENCE_KEY => $zap_transaction_reference_no,
+                            ZAPConstants::TRANSACTION_POINTS_KEY => $points_used,
+                            ZAPConstants::TRANSACTION_STATUS_KEY => ZAPConstants::RETURNED_POINT_STATUS,
+                            'fulfilled_at' => Carbon::now()->toIso8601String(),
+                        ];
+
+                        // Add this new transaction to the collection
+                        $transactions->push($zap_return_point_transaction);
+
+                        // Add or update the collection of transaction in the Order's metafield
+                        $this->createOrUpdateTransactionMetafield(
+                            $order_id,
+                            $order_metafields,
+                            $zap_use_point_transaction,
+                            $transactions_metafield_id,
+                            $transactions
+                        );
+
+                    } else {
+                        Log::critical("failed to add used points of cancelled order #{$order_id}", [
+                            'discount_code' => $zap_discount['code'],
+                            'amount' => $points_used,
+                            'customer_id' => $customer_id,
+                        ]);
+                    }
+                }
+
+                //if user has been awarded points on this order, deduct it
+                if ($last_zap_transaction) {
+                    /**
+                     * Prevent the system from deducting points from previously deducted order,
+                     * this should not happend, but will prevent it anyway just in case.
+                     */
+                    if ($last_zap_trans_status != ZAPConstants::VOID_POINT_STATUS) {
+                        $void_response = ZAP::deductPoints($last_transaction_points, $mobile);
+
+                        if ($void_response->ok()) {
+                            $void_trans_body = $void_response->collect();
+                            $void_trans_ref_no = $void_trans_body['data']['refNo'];
+                            $zap_new_transaction = [
+                                ZAPConstants::TRANSACTION_REFERENCE_KEY => $void_trans_ref_no,
+                                ZAPConstants::TRANSACTION_POINTS_KEY => $last_transaction_points,
+                                ZAPConstants::TRANSACTION_STATUS_KEY => ZAPConstants::VOID_POINT_STATUS,
+                                'fulfilled_at' => Carbon::now()->toIso8601String()
+                            ];
+
+                            $transactions->push($zap_new_transaction);
+
+                            // Add or update the collection of transaction in the Order's metafield
+                            $this->createOrUpdateTransactionMetafield(
+                                $order_id,
+                                $order_metafields,
+                                $zap_new_transaction,
+                                $transactions_metafield_id,
+                                $transactions
+                            );
+
+                        } else {
+                            $response_status = Response::HTTP_INTERNAL_SERVER_ERROR;
+                            $success = false;
+                            Log::critical("failed to void ZAP transaction of order {$order_id}", [
+                                'order_id' => $order_id,
+                                'response' => $void_response->collect(),
+                            ]);
+                        }
+                    }
+                }
+
+                //get current points balance and update
+                $current_balance_response = ZAP::inquireBalance($mobile);
+                $customer_balance = $current_balance_response->collect();
+                $current_customer_balance = $customer_balance['data']['currencies'][0]['validPoints'];
+
+                $this->createOrUpdateCustomerBalanceMetafield(
+                    $customer_id,
+                    $customer_balance_metafield_id,
+                    $current_customer_balance
+                );
+
+
+            } else {
+                Log::warning("order #{$order_id} has been cancelled without a zap member information");
+            }
+        } else {
+            Log::warning("order #{$order_id} has been cancelled without a customer information");
+        }
+
+        return response()->json(['success' => $success], $status);
     }
 
     public function onOrderUpdate(Request $request): JsonResponse
@@ -284,7 +416,107 @@ class WebhookController extends Controller
 
     public function onOrderFulfill(Request $request): JsonResponse
     {
+        $success = true;
+        $status = Response::HTTP_OK;
+        $body = $request->all();
+        $order_id = $body['id'];
+        $customer = $body['customer'];
+        $fulfillment_status = $body['fulfillment_status'];
 
+        if (Arr::exists($body, 'customer')) {
+            $customer = $body['customer'];
+            $customer_id = $customer['id'];
+            $mobile = substr($customer['phone'], 1);
+            $order_metafields = ShopifyAdmin::fetchMetafield($order_id, ShopifyConstants::ORDER_RESOURCE);
+            $customer_metafields = ShopifyAdmin::fetchMetafield($customer_id, ShopifyConstants::CUSTOMER_RESOURCE);
+            $customer_member_id = $customer_metafields->ZAPMemberId(ShopifyConstants::METAFIELD_INDEX_VALUE);
+            $customer_balance_metafield_id = $customer_metafields
+                ->ZAPMemberTotalPoints(ShopifyConstants::METAFIELD_INDEX_ID);
+
+            // if customer has a member id from ZAP, this means we should add a point in its account
+            // else ignore the event.
+            if ($customer_member_id) {
+                $order_transaction_list = $order_metafields->ZAPTransactions();
+                $transactions = collect([]);
+                $transactions_metafield_id = null;
+                $calculated_points = $order_metafields->getPointsToEarnMetafield();
+                $last_zap_transaction = $order_metafields->lastZAPTransaction();
+                $award_points_flag = true;
+
+                // If transaction list is not empty, decode else create a an empty collection
+                if ($order_transaction_list) {
+                    $transactions_metafield_id = $order_transaction_list[ShopifyConstants::METAFIELD_INDEX_ID];
+                    $transactions = collect(json_decode($order_transaction_list[ShopifyConstants::METAFIELD_INDEX_VALUE], true));
+                }
+
+                if (! $calculated_points) {
+                    $award_points_flag = false;
+                    Log::warning("order #{$order_id} has been fulfilled without a calculated points");
+                } else if ($fulfillment_status !== ShopifyConstants::FULFILLMENT_FULFILLED) {
+                    $award_points_flag = false;
+                } else if ($last_zap_transaction) {
+                    $last_zap_trans_status = $last_zap_transaction[ZAPConstants::TRANSACTION_STATUS_KEY];
+
+                    if ($last_zap_trans_status == ZAPConstants::EARN_POINT_STATUS) {
+                        $award_points_flag = false;
+                        Log::warning("order #{$order_id} has been fulfilled though points is already earned");
+                    }
+                }
+
+                if ($award_points_flag) {
+
+                    $earn_points_response = ZAP::addPoints($calculated_points, $mobile);
+
+                    if ($earn_points_response->ok()) {
+                        $earn_points_response_body = $earn_points_response->collect();
+                        $zap_transaction_reference_no = $earn_points_response_body['data']['refNo'];
+                        $zap_use_point_transaction = [
+                            ZAPConstants::TRANSACTION_REFERENCE_KEY => $zap_transaction_reference_no,
+                            ZAPConstants::TRANSACTION_POINTS_KEY => $calculated_points,
+                            ZAPConstants::TRANSACTION_STATUS_KEY => ZAPConstants::EARN_POINT_STATUS,
+                            'fulfilled_at' => Carbon::now()->toIso8601String(),
+                        ];
+
+                        // Add this new transaction to the collection
+                        $transactions->push($zap_use_point_transaction);
+
+                        // Add or update the collection of transaction in the Order's metafield
+                        $this->createOrUpdateTransactionMetafield(
+                            $order_id,
+                            $order_metafields,
+                            $zap_use_point_transaction,
+                            $transactions_metafield_id,
+                            $transactions
+                        );
+
+                        //get current points balance and update
+                        $current_balance_response = ZAP::inquireBalance($mobile);
+                        $customer_balance = $current_balance_response->collect();
+                        $current_customer_balance = $customer_balance['data']['currencies'][0]['validPoints'];
+
+                        $this->createOrUpdateCustomerBalanceMetafield(
+                            $customer_id,
+                            $customer_balance_metafield_id,
+                            $current_customer_balance
+                        );
+
+                    } else {
+                        Log::critical("failed to award used points of fulfilled order #{$order_id}", [
+                            'discount_code' => $zap_discount['code'],
+                            'amount' => $points_used,
+                            'customer_id' => $customer_id,
+                        ]);
+                    }
+                }
+
+            } else {
+                Log::warning("order #{$order_id} has been fulfilled without a zap member information");
+            }
+        } else {
+            Log::warning("order #{$order_id} has been fulfilled without a customer information");
+        }
+
+        return response()->json(['success' => $success], $status);
     }
 
     private function createOrUpdateCustomerBalanceMetafield(

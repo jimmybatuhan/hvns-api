@@ -141,4 +141,16 @@ class MetafieldMixin
             );
         };
     }
+
+    public function getPointsToEarnMetafield(): Closure
+    {
+        return function ()
+        {
+            return @json_decode($this->metafield(
+                ZAPConstants::TRANSACTION_NAMESPACE,
+                ZAPConstants::POINTS_TO_EARN_KEY,
+                ShopifyConstants::METAFIELD_INDEX_VALUE
+            ), true);
+        };
+    }
 }

@@ -309,7 +309,23 @@ class WebhookController extends Controller
 
     public function onOrderUpdate(Request $request): JsonResponse
     {
+        $body = $request->all();
+        $order_id = $body['id'];
+        $line_items = collect($body['line_items']);
+        $cancelled_at = $body['cancelled_at'];
+        $order_metafields = ShopifyAdmin::fetchMetafield($order_id, ShopifyConstants::ORDER_RESOURCE);
+        $points_to_earn_metafield_id = $order_metafields->getPointsToEarnMetafieldId();
 
+        /**
+         * if the order is not cancelled and has a points_to_earn metafield
+         * recalculate the points to be earn
+         */
+        if (is_null($cancelled_at) && $points_to_earn_metafield_id) {
+            $total_points = $line_items->map(fn (array $item) => ShopPromo::calculatePoints($item))->sum();
+            ShopifyAdmin::updateMetafieldById($points_to_earn_metafield_id, $total_points);
+        }
+
+        return response()->json(['success' => true], Response::HTTP_OK);
     }
 
     public function onOrderFulfill(Request $request): JsonResponse

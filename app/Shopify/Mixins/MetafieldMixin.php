@@ -130,4 +130,15 @@ class MetafieldMixin
         };
     }
 
+    public function getPointsToEarnMetafieldId(): Closure
+    {
+        return function ()
+        {
+            return $this->metafield(
+                ZAPConstants::TRANSACTION_NAMESPACE,
+                ZAPConstants::POINTS_TO_EARN_KEY,
+                ShopifyConstants::METAFIELD_INDEX_ID,
+            );
+        };
+    }
 }

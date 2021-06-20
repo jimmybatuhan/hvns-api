@@ -267,7 +267,7 @@ class WebhookController extends Controller
                                 $this->createOrUpdateCustomerBalanceMetafield(
                                     $customer_id,
                                     $customer_balance_metafield_id,
-                                    $current_customer_balance
+                                    $current_customer_balance + $total_points
                                 );
 
                             } else {
@@ -300,6 +300,11 @@ class WebhookController extends Controller
         }
 
         return response()->json(['success' => $success], $status);
+    }
+
+    public function onOrderCanceled(Request $reqest): JsonResponse
+    {
+
     }
 
     private function createOrUpdateCustomerBalanceMetafield(

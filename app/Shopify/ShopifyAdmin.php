@@ -140,6 +140,7 @@ class ShopifyAdmin
                 'allocation_method' => 'across',
                 'value_type' => 'fixed_amount',
                 'value' => $amount,
+                "once_per_customer" => true,
                 'prerequisite_customer_ids' => [
                     $customer_id,
                 ],
@@ -199,9 +200,9 @@ class ShopifyAdmin
     public function getCustomerOrders(string $customer_id, ?string $start_at, ?string $end_at): Response
     {
         $fields = ['id', 'name', 'total_price', 'fulfillment_status', 'created_at'];
-        $filter = '';
+        $filter = 'status=any';
         if ($start_at && $end_at) {
-            $filter = "created_at_min={$start_at}&created_at_max={$end_at}";
+            $filter =  $filter . "&created_at_min={$start_at}&created_at_max={$end_at}";
         }
 
         $fields = 'fields=' . implode(',', $fields);

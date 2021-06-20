@@ -140,7 +140,7 @@ class ShopifyAdmin
                 'allocation_method' => 'across',
                 'value_type' => 'fixed_amount',
                 'value' => $amount,
-                "once_per_customer" => true,
+                // "once_per_customer" => true,
                 'prerequisite_customer_ids' => [
                     $customer_id,
                 ],

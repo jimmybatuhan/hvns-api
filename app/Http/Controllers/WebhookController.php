@@ -307,6 +307,16 @@ class WebhookController extends Controller
 
     }
 
+    public function onOrderUpdate(Request $request): JsonResponse
+    {
+
+    }
+
+    public function onOrderFulfill(Request $request): JsonResponse
+    {
+
+    }
+
     private function createOrUpdateCustomerBalanceMetafield(
         string $customer_id,
         string $balance_metafield_id,

@@ -285,8 +285,12 @@ class WebhookController extends Controller
                 $transactions = collect([]);
                 $transactions_metafield_id = null;
                 $last_zap_transaction = $order_metafields->lastZAPTransaction();
-                $last_zap_trans_status = $last_zap_transaction[ZAPConstants::TRANSACTION_STATUS_KEY];
-                $last_transaction_points = $last_zap_transaction[ZAPConstants::TRANSACTION_POINTS_KEY];
+
+                if ($last_zap_transaction) {
+                    $last_zap_trans_status = $last_zap_transaction[ZAPConstants::TRANSACTION_STATUS_KEY];
+                    $last_transaction_points = $last_zap_transaction[ZAPConstants::TRANSACTION_POINTS_KEY];
+                }
+
                 $last_trans_meta_id = $order_metafields->lastZAPTransactionMetaId();
 
                 // If transaction list is not empty, decode else create a an empty collection

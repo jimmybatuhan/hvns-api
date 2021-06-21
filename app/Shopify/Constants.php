@@ -15,6 +15,7 @@ class Constants
     public const ORDER_RESOURCE = 'orders';
 
     public const FULFILLMENT_CANCELLED = 'cancelled';
+    public const FULFILLMENT_FULFILLED = 'fulfilled';
 
     public const METAFIELD_VALUE_TYPE_STRING = 'string';
     public const METAFIELD_VALUE_TYPE_JSON_STRING = 'json_string';

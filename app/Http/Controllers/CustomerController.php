@@ -427,6 +427,7 @@ class CustomerController extends Controller
 
                 return [
                     'order_no' => $order['name'],
+                    'order_id' => $order['token'],
                     'transaction_date' => $order['created_at'],
                     'branch' => '',
                     'total' => $order['total_price'],
@@ -442,6 +443,7 @@ class CustomerController extends Controller
             $transactions = collect($member_trasactions_response->collect()['data']['transactions']);
             $zap_transactions = $transactions->map(fn (array $transaction) => [
                 'order_no' => $transaction['refNo'],
+                'order_id' => '',
                 'transaction_date' => $transaction['dateProcessed'],
                 'branch' => $transaction['branchName'],
                 'total' => $transaction['amount'],

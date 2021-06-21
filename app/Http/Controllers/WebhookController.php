@@ -422,6 +422,7 @@ class WebhookController extends Controller
         $order_id = $body['id'];
         $customer = $body['customer'];
         $fulfillment_status = $body['fulfillment_status'];
+        $dicount_codes = $body['discount_codes'];
 
         if (Arr::exists($body, 'customer')) {
             $customer = $body['customer'];
@@ -432,6 +433,9 @@ class WebhookController extends Controller
             $customer_member_id = $customer_metafields->ZAPMemberId(ShopifyConstants::METAFIELD_INDEX_VALUE);
             $customer_balance_metafield_id = $customer_metafields
                 ->ZAPMemberTotalPoints(ShopifyConstants::METAFIELD_INDEX_ID);
+            $zap_discount = collect($dicount_codes)
+                ->filter( fn ($discount) => $discount['code'] === ZAPConstants::DISCOUNT_PREFIX . $customer_id)
+                ->first();
 
             // if customer has a member id from ZAP, this means we should add a point in its account
             // else ignore the event.
@@ -449,7 +453,10 @@ class WebhookController extends Controller
                     $transactions = collect(json_decode($order_transaction_list[ShopifyConstants::METAFIELD_INDEX_VALUE], true));
                 }
 
-                if (! $calculated_points) {
+                if ($zap_discount) {
+                    $award_points_flag = false;
+                    Log::warning("order #{$order_id} has been fulfilled but not awarded as it has discount codes");
+                } else if (! $calculated_points) {
                     $award_points_flag = false;
                     Log::warning("order #{$order_id} has been fulfilled without a calculated points");
                 } else if ($fulfillment_status !== ShopifyConstants::FULFILLMENT_FULFILLED) {

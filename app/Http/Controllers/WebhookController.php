@@ -332,10 +332,7 @@ class WebhookController extends Controller
                             'customer_id' => $customer_id,
                         ]);
                     }
-                }
-
-                //if user has been awarded points on this order, deduct it
-                if ($last_zap_transaction) {
+                } else if ($last_zap_transaction) {
                     /**
                      * Prevent the system from deducting points from previously deducted order,
                      * this should not happend, but will prevent it anyway just in case.

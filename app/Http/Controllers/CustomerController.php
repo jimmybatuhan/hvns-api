@@ -427,7 +427,7 @@ class CustomerController extends Controller
 
                 return [
                     'order_no' => $order['name'],
-                    'order_id' => $order['id'],
+                    'order_id' => $order['token'],
                     'transaction_date' => $order['created_at'],
                     'branch' => '',
                     'total' => $order['total_price'],

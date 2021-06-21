@@ -320,7 +320,7 @@ class WebhookController extends Controller
                         $this->createOrUpdateTransactionMetafield(
                             $order_id,
                             $order_metafields,
-                            $zap_use_point_transaction,
+                            $zap_return_point_transaction,
                             $transactions_metafield_id,
                             $transactions
                         );

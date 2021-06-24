@@ -108,41 +108,58 @@ class CustomerController extends Controller
                     if ($zap_response->failed()) {
                         $zap_error_code = $zap_response_body["errorCode"];
 
-                        if ($zap_error_code === ZAPConstants::EMAIL_ALREADY_EXISTS) {
-                            // Delete the created customer in shopify since ZAP fails to register the customer
-                            ShopifyAdmin::deleteCustomer($shopify_customer_id);
-
-                            $validator->errors()->add('email', 'email already exists.');
-                            $response = [
-                                "success" => false,
-                                "errors" => $validator->getMessageBag(),
-                            ];
-
-                        } else if ($zap_error_code === ZAPConstants::MOBILE_ALREADY_EXISTS) {
-                            // if the mobile number already exists, get the member information instead
+                        if (in_array($zap_error_code, [
+                            ZAPConstants::EMAIL_ALREADY_EXISTS,
+                            ZAPConstants::MOBILE_ALREADY_EXISTS
+                        ])) {
                             $zap_membership_response = ZAP::getMembershipData($request->mobile);
+
                             $shopify_customer_data = $zap_membership_response->collect();
                             $zap_member_id = $shopify_customer_data['data']['userId'];
+                            $zap_member_mobile = $shopify_customer_data['data']['mobile'];
+                            $zap_member_email = $shopify_customer_data['data']['email'];
 
-                            // get the member balance
-                            $zap_member_balance = ZAP::inquireBalance($request->mobile);
-                            $zap_member_balance_data = $zap_member_balance->collect();
-                            $customer_current_points = ! empty($zap_member_balance_data['data']['currencies'])
-                                ? $zap_member_balance_data['data']['currencies'][0]['validPoints']
-                                : 0.00;
+                            // if the information matched the existing ZAP member
+                            if ($zap_member_email === $request->email && $zap_member_mobile === $request->mobile) {
 
-                            $this->addMetafieldsToNewCustomer(
-                                $shopify_customer_id,
-                                $zap_member_id,
-                                $customer_current_points,
-                                $request->gender,
-                                $request->birthday
-                            );
+                                // get the member balance
+                                $zap_member_balance = ZAP::inquireBalance($request->mobile);
+                                $zap_member_balance_data = $zap_member_balance->collect();
+                                $customer_current_points = ! empty($zap_member_balance_data['data']['currencies'])
+                                    ? $zap_member_balance_data['data']['currencies'][0]['validPoints']
+                                    : 0.00;
 
-                            $response = [
-                                "success" => true,
-                                "message" => "user created",
-                            ];
+                                $this->addMetafieldsToNewCustomer(
+                                    $shopify_customer_id,
+                                    $zap_member_id,
+                                    $customer_current_points,
+                                    $request->gender,
+                                    $request->birthday
+                                );
+
+                                $response = [
+                                    "success" => true,
+                                    "message" => "user created",
+                                ];
+                            } else {
+                                switch ($zap_error_code) {
+                                    case ZAPConstants::EMAIL_ALREADY_EXISTS:
+                                        $validator->errors()->add('email', 'email already exists.');
+                                        break;
+
+                                    case ZAPConstants::MOBILE_ALREADY_EXISTS
+                                        $validator->errors()->add('mobile', 'mobile number already exists.');
+                                        break;
+
+                                    default:
+                                        $validator->errors()->add('email', 'unexpected error occured.');
+                                }
+
+                                $response = [
+                                    "success" => false,
+                                    "errors" => $validator->getMessageBag(),
+                                ];
+                            }
                         }
                     } else {
                         $zap_member_id = $zap_response_body['data']['userId'];

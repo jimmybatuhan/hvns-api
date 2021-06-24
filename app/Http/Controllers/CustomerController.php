@@ -399,6 +399,7 @@ class CustomerController extends Controller
             'end_start_filter' => 'date|nullable',
         ]);
 
+        $zap_member_id = $request->zap_member_id;
         $start_date = (new Carbon($request->start_date_filter))->format('Y-m-d');
         $end_date = (new Carbon($request->end_date_filter))->format('Y-m-d');
 
@@ -406,7 +407,6 @@ class CustomerController extends Controller
         $customer_mobile = $request->mobile_no;
         $zap_transactions = collect([]);
         $order_with_metafield = collect([]);
-        $member_trasactions_response = ZAP::getUserTransactions($customer_mobile);
         $customer_order_response = ShopifyAdmin::getCustomerOrders($customer_id, $start_date, $end_date);
 
         if ($customer_order_response->ok()) {
@@ -439,25 +439,28 @@ class CustomerController extends Controller
             });
         }
 
-        if ($member_trasactions_response->ok()) {
-            $transactions = collect($member_trasactions_response->collect()['data']['transactions']);
-            $zap_transactions = $transactions->map(fn (array $transaction) => [
-                'order_no' => $transaction['refNo'],
-                'order_id' => '',
-                'transaction_date' => $transaction['dateProcessed'],
-                'branch' => $transaction['branchName'],
-                'total' => $transaction['amount'],
-                'points_earned' => $transaction['points'][0]['earned'],
-                'points_redeemed' => $transaction['points'][0]['redeemed'],
-                'point_status' => $transaction['status'],
-                'zap_transaction_number' => $transaction['refNo']
-            ]);
+        if (! is_null($zap_member_id)) {
+            $member_trasactions_response = ZAP::getUserTransactions($customer_mobile);
+            if ($member_trasactions_response->ok()) {
+                $transactions = collect($member_trasactions_response->collect()['data']['transactions']);
+                $zap_transactions = $transactions->map(fn (array $transaction) => [
+                    'order_no' => $transaction['refNo'],
+                    'order_id' => '',
+                    'transaction_date' => $transaction['dateProcessed'],
+                    'branch' => $transaction['branchName'],
+                    'total' => $transaction['amount'],
+                    'points_earned' => $transaction['points'][0]['earned'],
+                    'points_redeemed' => $transaction['points'][0]['redeemed'],
+                    'point_status' => $transaction['status'],
+                    'zap_transaction_number' => $transaction['refNo']
+                ]);
 
-            if ($start_date && $end_date) {
-                $zap_transactions = $zap_transactions
-                    ->filter(fn ($transaction) =>
-                        (new Carbon($transaction['transaction_date']))->between($start_date, $end_date)
-                );
+                if ($start_date && $end_date) {
+                    $zap_transactions = $zap_transactions
+                        ->filter(fn ($transaction) =>
+                            (new Carbon($transaction['transaction_date']))->between($start_date, $end_date)
+                    );
+                }
             }
         }
 

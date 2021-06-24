@@ -147,7 +147,7 @@ class CustomerController extends Controller
                                         $validator->errors()->add('email', 'email already exists.');
                                         break;
 
-                                    case ZAPConstants::MOBILE_ALREADY_EXISTS
+                                    case ZAPConstants::MOBILE_ALREADY_EXISTS:
                                         $validator->errors()->add('mobile', 'mobile number already exists.');
                                         break;
 

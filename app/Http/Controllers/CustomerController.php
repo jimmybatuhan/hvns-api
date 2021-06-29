@@ -91,7 +91,7 @@ class CustomerController extends Controller
             if (! $shopify_response->failed()) {
                 $shopify_customer_id = $shopify_response_body["customer"]["id"];
 
-                if($request->join_rewards){
+                if(intval($request->join_rewards)){
 
                     // Attempt to create a member in ZAP
                     $zap_response = ZAP::createMember(

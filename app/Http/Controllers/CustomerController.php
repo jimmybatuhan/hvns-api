@@ -440,6 +440,7 @@ class CustomerController extends Controller
 
         if ($customer_order_response->ok()) {
             $shopify_orders = collect($customer_order_response->collect()['orders']);
+
             $order_with_metafield = $shopify_orders->map(function (array $order) {
                 $order_metafields = ShopifyAdmin::fetchMetafield($order['id'], ShopifyConstants::ORDER_RESOURCE);
                 $last_zap_transaction = $order_metafields->lastZAPTransaction() ?? [];
@@ -460,6 +461,7 @@ class CustomerController extends Controller
                     'transaction_date' => $order['created_at'],
                     'branch' => '',
                     'total' => $order['total_price'],
+                    'cancelled_at' => $order['cancelled_at'],
                     'points_earned' => $earned,
                     'points_redeemed' => $redeemed,
                     'point_status' => $last_zap_status,

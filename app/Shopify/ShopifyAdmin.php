@@ -199,7 +199,7 @@ class ShopifyAdmin
 
     public function getCustomerOrders(string $customer_id, ?string $start_at, ?string $end_at): Response
     {
-        $fields = ['id', 'name', 'total_price', 'fulfillment_status', 'created_at', 'token'];
+        $fields = ['id', 'name', 'total_price', 'fulfillment_status', 'created_at', 'token', 'cancelled_at'];
         $filter = 'status=any';
         if ($start_at && $end_at) {
             $filter =  $filter . "&created_at_min={$start_at}&created_at_max={$end_at}";

@@ -1,6 +1,6 @@
 <?php
 
-namespace  App\Http\Controllers;
+namespace App\Http\Controllers;
 
 use App\Shopify\Constants as ShopifyConstants;
 use App\Shopify\Facades\ShopifyAdmin;
@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ViewErrorBag;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -91,7 +92,7 @@ class CustomerController extends Controller
             if (! $shopify_response->failed()) {
                 $shopify_customer_id = $shopify_response_body["customer"]["id"];
 
-                if($request->join_rewards){
+                if(intval($request->join_rewards)){
 
                     // Attempt to create a member in ZAP
                     $zap_response = ZAP::createMember(
@@ -207,7 +208,6 @@ class CustomerController extends Controller
                     ];
 
                 }
-
             } else {
                 collect($shopify_response_body["errors"])
                     ->each(function ($item, $key) use (&$validator) {
@@ -304,7 +304,6 @@ class CustomerController extends Controller
                     ],
                 ];
             }
-
         } else {
             $response = [
                 'success' => false,
@@ -498,5 +497,53 @@ class CustomerController extends Controller
             ->sortBy(fn ($transaction) => $transaction['transaction_date']);
 
         return response()->json($customer_transactions);
+    }
+
+    public function registerShopifyCustomerToZAP(Request $request): JsonResponse
+    {
+        $response = [];
+        $validator = Validator::make($request->all(), [
+            'customer_id' => 'required|bail',
+            'first_name' => 'required|bail',
+            'last_name' => 'required|bail',
+            'email' => 'required|email|bail',
+            'gender' => 'required|in:Male,Female|bail',
+            'birthday' => 'required|date|bail',
+            'mobile' => 'required|bail',
+        ]);
+
+        $zap_response = ZAP::createMember(
+            $request->mobile,
+            $request->first_name,
+            $request->last_name,
+            $request->email,
+            $request->gender,
+            new Carbon($request->birthday)
+        );
+
+        $zap_response_body = $zap_response->collect();
+
+        if ($zap_response->failed()) {
+            $zap_error_code = $zap_response_body["errorCode"];
+
+            switch ($zap_error_code) {
+                case ZAPConstants::EMAIL_ALREADY_EXISTS:
+                    throw new ValidationException('email already exists');
+                    break;
+                case ZAPConstants::MOBILE_ALREADY_EXISTS:
+                    throw new ValidationException('mobile number already exists');
+                    break;
+                default:
+                    throw new ValidationException('unexpected error occured');
+                    break;
+            }
+
+            $response = [
+                "success" => true,
+                "errors" => $validator->getMessageBag(),
+            ];
+
+        return response()->json($response);
+        }
     }
 }

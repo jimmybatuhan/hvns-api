@@ -66,33 +66,41 @@ class ShopPromo
      */
     public function calculatePoints(array $item): float
     {
-        $sku = $item['sku'];
-        $quantity = $item['quantity'];
-        $amount = floatval($item['price']);
-        $promotion = $this->getPromotion($sku);
-        $default_points = $amount * ZAPConstants::ZAP_REWARD_PECENTAGE;
-        $points = $default_points;
+        $calculated_points = 0;
 
-        if (! $promotion->isEmpty()) {
-            $promotion = $promotion->first();
-            $reward_type = trim(strtolower($promotion[self::REWARD_TYPE_KEY]));
-            $reward_amount = floatval($promotion[self::REWARD_AMOUNT_KEY]);
+        if ($item['fulfillable_quantity'] > 0) {
 
-            if ($reward_amount > 0) {
-                switch ($reward_type) {
-                    case self::REWARD_TYPE_PRECISE:
-                        $points = $default_points + $reward_amount;
-                        break;
-                    case self::REWARD_TYPE_MULTIPLIER:
-                        $points = $default_points * $reward_amount;
-                        break;
-                    default:
-                        // Log a warning, unknown reward type, resolve by using the default 2%
+            $sku = $item['sku'];
+            $quantity = $item['quantity'];
+            $amount = floatval($item['price']);
+            $promotion = $this->getPromotion($sku);
+            $default_points = $amount * ZAPConstants::ZAP_REWARD_PECENTAGE;
+            $points = $default_points;
+
+            if (! $promotion->isEmpty()) {
+                $promotion = $promotion->first();
+                $reward_type = trim(strtolower($promotion[self::REWARD_TYPE_KEY]));
+                $reward_amount = floatval($promotion[self::REWARD_AMOUNT_KEY]);
+
+                if ($reward_amount > 0) {
+                    switch ($reward_type) {
+                        case self::REWARD_TYPE_PRECISE:
+                            $points = $default_points + $reward_amount;
+                            break;
+                        case self::REWARD_TYPE_MULTIPLIER:
+                            $points = $default_points * $reward_amount;
+                            break;
+                        default:
+                            // Log a warning, unknown reward type, resolve by using the default 2%
+                    }
+                } else {
+                    // Log a warning, promo has a zero or an invalid value
                 }
-            } else {
-                // Log a warning, promo has a zero or an invalid value
             }
+
+            $calculated_points = floatval($points * $quantity);
         }
-        return floatval($points * $quantity);
+
+        return $calculated_points;
     }
 }

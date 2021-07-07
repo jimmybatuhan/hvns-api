@@ -101,7 +101,7 @@ class ShopPromo
             }
         }
 
-        $calculated_points = floatval($points * $quantity);
+        $calculated_points = floatval($points);
 
         return [
             "id" => $item['id'],
@@ -124,10 +124,9 @@ class ShopPromo
         $reward_amount = 0;
 
         if ( array_key_exists($id, $line_item_points) ) {
-            $calculated_points = $line_item_points[$id]["points_to_earn"];
+            $calculated_points = floatval($line_item_points[$id]["points_to_earn"] * $quantity);
             $reward_type = $line_item_points[$id]["reward_type"];
             $reward_amount = $line_item_points[$id]["reward_amount"];
-
         } else {
             $sku = $item['sku'];
             $promotion = $this->getPromotion($sku);

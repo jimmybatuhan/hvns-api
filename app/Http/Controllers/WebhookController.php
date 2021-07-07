@@ -445,6 +445,15 @@ class WebhookController extends Controller
             $line_item_points_collection = collect($line_item_points);
 
             if ($total_points_to_earn != $points_earned) {
+
+                //TODO
+
+                //revoke pointss based on point earned
+
+                //credit on new total points to earn
+
+                //check if above minimum on required amount
+
                 ShopifyAdmin::updateMetafieldById($points_earned_metafield, $total_points_to_earn);
             }
 

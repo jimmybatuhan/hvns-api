@@ -153,4 +153,64 @@ class MetafieldMixin
             ), true);
         };
     }
+
+    /**
+     * Get the metafield id of the line item promotions
+     */
+    public function getLineItemPointsMetafieldId(): Closure
+    {
+        return function ()
+        {
+            return $this->metafield(
+                ZAPConstants::TRANSACTION_NAMESPACE,
+                ZAPConstants::LINE_ITEM_POINTS,
+                ShopifyConstants::METAFIELD_INDEX_ID,
+            );
+        };
+    }
+
+    public function getLineItemPointsMetafield(): Closure
+    {
+        /**
+         * @return array|null
+         */
+        return function ()
+        {
+            return @json_decode($this->metafield(
+                ZAPConstants::TRANSACTION_NAMESPACE,
+                ZAPConstants::LINE_ITEM_POINTS,
+                ShopifyConstants::METAFIELD_INDEX_VALUE,
+            ), true);
+        };
+    }
+
+    /**
+     * Get the metafield id of the points earned
+     */
+    public function getPointsEarnedMetafieldId(): Closure
+    {
+        return function ()
+        {
+            return $this->metafield(
+                ZAPConstants::TRANSACTION_NAMESPACE,
+                ZAPConstants::POINTS_EARNED,
+                ShopifyConstants::METAFIELD_INDEX_ID,
+            );
+        };
+    }
+
+    public function getPointsEarnedMetafield(): Closure
+    {
+        /**
+         * @return array|null
+         */
+        return function ()
+        {
+            return @json_decode($this->metafield(
+                ZAPConstants::TRANSACTION_NAMESPACE,
+                ZAPConstants::POINTS_EARNED,
+                ShopifyConstants::METAFIELD_INDEX_VALUE,
+            ), true);
+        };
+    }
 }

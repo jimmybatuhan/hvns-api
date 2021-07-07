@@ -233,22 +233,30 @@ class WebhookController extends Controller
                         ]);
                     }
                 } else {
-                    if (floatval($body['subtotal_price']) >= ShopifyConstants::MINIMUM_SUBTOTAL_TO_EARN) {
-                        /**
+                    /**
                          * compute the total points to be earned, (points will be added to zap when order is fulfilled)
                          */
                         $line_items = collect($body['line_items']);
+                        $line_items_points = $line_items->map(fn (array $item) => ShopPromo::calculateInitialPointsToEarn($item));
+                        $keyed_line_item_points = $line_items_points->keyBy('id');
 
+                        //add metafield for points to earn, and points earned
                         ShopifyAdmin::addMetafields(
                             ShopifyConstants::ORDER_RESOURCE,
                             $order_id,
-                            collect()->push([
-                                'key' => ZAPConstants::POINTS_TO_EARN_KEY,
-                                'value' => $line_items->map(fn (array $item) => ShopPromo::calculatePoints($item))->sum(),
+                            collect()
+                            ->push([
+                                'key' => ZAPConstants::POINTS_EARNED,
+                                'value' => 0,
+                                'namespace' => ZAPConstants::TRANSACTION_NAMESPACE
+                            ])
+                            ->push([
+                                'key' => ZAPConstants::LINE_ITEM_POINTS,
+                                'value' => $keyed_line_item_points->toJson(),
+                                'value_type' => ShopifyConstants::METAFIELD_VALUE_TYPE_JSON_STRING,
                                 'namespace' => ZAPConstants::TRANSACTION_NAMESPACE
                             ])
                         );
-                    }
                 }
             }
         }
@@ -401,15 +409,48 @@ class WebhookController extends Controller
         $line_items = collect($body['line_items']);
         $cancelled_at = $body['cancelled_at'];
         $order_metafields = ShopifyAdmin::fetchMetafield($order_id, ShopifyConstants::ORDER_RESOURCE);
-        $points_to_earn_metafield_id = $order_metafields->getPointsToEarnMetafieldId();
+
+        $points_earned_metafield = $order_metafields->getPointsEarnedMetafieldId();
+        $points_earned = $order_metafields->getPointsEarnedMetafield();
+
+        $line_item_points_metafield = $order_metafields->getLineItemPointsMetafieldId();
+        $line_item_points = $order_metafields->getLineItemPointsMetafield();
+        $line_item_points_original_count = sizeof($line_item_points);
 
         /**
          * if the order is not cancelled and has a points_to_earn metafield
          * recalculate the points to be earn
          */
-        if (is_null($cancelled_at) && $points_to_earn_metafield_id) {
-            $total_points = $line_items->map(fn (array $item) => ShopPromo::calculatePoints($item))->sum();
-            ShopifyAdmin::updateMetafieldById($points_to_earn_metafield_id, $total_points);
+        if ($points_earned_metafield) {
+
+            $total_points_collection = $line_items->map(function (array $item) use (&$line_item_points) {
+                $result = ShopPromo::calculatePointsToEarn($item, $line_item_points);
+
+                if (! array_key_exists($result['id'], $line_item_points) ) {
+                    $line_item_points[$result['id']] = [
+                        "id" => $result['id'],
+                        "reward_type" => $result['reward_type'],
+                        "reward_amount" => $result['reward_amount'],
+                        "points_to_earn" => $result['points_to_earn'],
+                    ];
+                }
+
+                return $result;
+            });
+
+            $line_item_points_new_count = sizeof($line_item_points);
+
+            $total_points_to_earn = $total_points_collection->sum('points_to_credit');
+            $total_subtotal_amount = $total_points_collection->sum('subtotal_amount');
+            $line_item_points_collection = collect($line_item_points);
+
+            if ($total_points_to_earn != $points_earned) {
+                ShopifyAdmin::updateMetafieldById($points_earned_metafield, $total_points_to_earn);
+            }
+
+            if ($line_item_points_new_count != $line_item_points_original_count) {
+                ShopifyAdmin::updateMetafieldById($line_item_points_metafield, $line_item_points_collection->toJson());
+            }
         }
 
         return response()->json(['success' => true], Response::HTTP_OK);

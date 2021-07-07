@@ -9,6 +9,7 @@ use Sheets;
 
 class ShopPromo
 {
+    public const REWARD_TYPE_DEFAULT = 'default';
     public const REWARD_TYPE_PRECISE = 'precise';
     public const REWARD_TYPE_MULTIPLIER = 'multiplier';
     public const REWARD_TYPE_KEY = 'REWARD TYPE';
@@ -64,16 +65,73 @@ class ShopPromo
      *
      * TODO: make this by batch for faster result
      */
-    public function calculatePoints(array $item): float
+
+     //This will be just for the order create function
+    public function calculateInitialPointsToEarn(array $item): array
     {
         $calculated_points = 0;
 
-        if ($item['fulfillable_quantity'] > 0) {
+        $sku = $item['sku'];
+        $quantity = $item['quantity'];
+        $amount = floatval($item['price']);
+        $promotion = $this->getPromotion($sku);
+        $reward_type = self::REWARD_TYPE_DEFAULT;
+        $reward_amount = 0;
+        $default_points = $amount * ZAPConstants::ZAP_REWARD_PECENTAGE;
+        $points = $default_points;
 
+        if (! $promotion->isEmpty()) {
+            $promotion = $promotion->first();
+            $reward_type = trim(strtolower($promotion[self::REWARD_TYPE_KEY]));
+            $reward_amount = floatval($promotion[self::REWARD_AMOUNT_KEY]);
+
+            if ($reward_amount > 0) {
+                switch ($reward_type) {
+                    case self::REWARD_TYPE_PRECISE:
+                        $points = $default_points + $reward_amount;
+                        break;
+                    case self::REWARD_TYPE_MULTIPLIER:
+                        $points = $default_points * $reward_amount;
+                        break;
+                    default:
+                        // Log a warning, unknown reward type, resolve by using the default 2%
+                }
+            } else {
+                // Log a warning, promo has a zero or an invalid value
+            }
+        }
+
+        $calculated_points = floatval($points * $quantity);
+
+        return [
+            "id" => $item['id'],
+            "reward_type" => $reward_type,
+            "reward_amount" => $reward_amount,
+            "points_to_earn" => $calculated_points,
+        ];
+    }
+
+    public function calculatePointsToEarn(array $item, array &$line_item_points): array
+    {
+        $calculated_points = 0;
+        $subtotal_amount = 0;
+
+        $id = strval($item['id']);
+        $amount = floatval($item['price']);
+        $quantity = $item['quantity'];
+
+        $reward_type = self::REWARD_TYPE_DEFAULT;
+        $reward_amount = 0;
+
+        if ( array_key_exists($id, $line_item_points) ) {
+            $calculated_points = $line_item_points[$id]["points_to_earn"];
+            $reward_type = $line_item_points[$id]["reward_type"];
+            $reward_amount = $line_item_points[$id]["reward_amount"];
+
+        } else {
             $sku = $item['sku'];
-            $quantity = $item['quantity'];
-            $amount = floatval($item['price']);
             $promotion = $this->getPromotion($sku);
+
             $default_points = $amount * ZAPConstants::ZAP_REWARD_PECENTAGE;
             $points = $default_points;
 
@@ -101,6 +159,22 @@ class ShopPromo
             $calculated_points = floatval($points * $quantity);
         }
 
-        return $calculated_points;
+        $subtotal_amount = floatval($amount * $quantity);
+        $points_to_credit = $calculated_points;
+
+        // if item is not fulfilled, dont include it on the calculation of earned points
+        if($item['fulfillment_status'] != 'fulfilled'){
+            $subtotal_amount = 0;
+            $points_to_credit = 0;
+        }
+
+        return [
+            "id" => $item['id'],
+            "subtotal_amount" => $subtotal_amount,
+            "reward_type" => $reward_type,
+            "reward_amount" => $reward_amount,
+            "points_to_credit" => $points_to_credit,
+            "points_to_earn" => $calculated_points,
+        ];
     }
 }

@@ -128,9 +128,11 @@ class WebhookController extends Controller
 
     public function onOrderUpdate(Request $request): JsonResponse
     {
+        /**
+         * NOTE: Refunded items that is fulfilled, should be unfulfilled to trigger the recalcualtion of points
+         */
         $body = $request->all();
         $order_id = $body['id'];
-        $line_items = collect($body['line_items']);
         $is_cancelled = !is_null($body['cancelled_at']);
 
         if ($is_cancelled) {
@@ -150,7 +152,12 @@ class WebhookController extends Controller
              * recalculate the points to be earn
              */
             if ($points_earned_metafield) {
-                $total_points_collection = $line_items->map(function (array $item) use (&$line_item_points) {
+                $fulfillments = $body['fulfillments'];
+                $success_fullfillment_line_items = $fulfillments
+                    ->filter(fn (array $fulfill) => $fulfill['status'] === 'success')
+                    ->map(fn (array $fulfill) => $fulfill['line_items']);
+
+                $total_points_collection = $success_fullfillment_line_items->map(function (array $item) use (&$line_item_points) {
                     $result = ShopPromo::calculatePointsToEarn($item, $line_item_points);
 
                     if (! array_key_exists($result['id'], $line_item_points) ) {

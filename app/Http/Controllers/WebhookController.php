@@ -370,7 +370,7 @@ class WebhookController extends Controller
             $zap_return_point_transaction = [
                 ZAPConstants::TRANSACTION_REFERENCE_KEY => $zap_transaction_reference_no,
                 ZAPConstants::TRANSACTION_POINTS_KEY => $amount,
-                ZAPConstants::TRANSACTION_STATUS_KEY => ZAPConstants::RETURNED_POINT_STATUS,
+                ZAPConstants::TRANSACTION_STATUS_KEY => ZAPConstants::EARN_POINT_STATUS,
                 'fulfilled_at' => Carbon::now()->toIso8601String(),
             ];
 

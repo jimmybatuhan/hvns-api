@@ -34,4 +34,6 @@ class Constants
     public const OTP_PURPOSE_USE_POINTS = 'USE_POINTS';
     public const OTP_PURPOSE_GET_BALANCE = 'GET_BALANCE';
     public const POINTS_TO_EARN_KEY = 'points_to_earn';
+    public const LINE_ITEM_POINTS = 'line_item_points';
+    public const POINTS_EARNED = 'points_earned';
 }

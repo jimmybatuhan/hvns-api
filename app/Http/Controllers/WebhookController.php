@@ -355,7 +355,7 @@ class WebhookController extends Controller
         $transactions = collect();
         $add_points_request = ZAP::addPoints($amount, $mobile);
         $order_metafields = ShopifyAdmin::fetchMetafield($order_id, ShopifyConstants::ORDER_RESOURCE);
-
+        $transactions_metafield_id = null;
         $order_transaction_list = $order_metafields->ZAPTransactions();
 
         // If transaction list is not empty, decode else create a an empty collection
@@ -402,7 +402,7 @@ class WebhookController extends Controller
         $mobile = substr($customer['phone'], 1);
         $transactions = collect();
         $order_metafields = ShopifyAdmin::fetchMetafield($order_id, ShopifyConstants::ORDER_RESOURCE);
-
+        $transactions_metafield_id = null;
         $order_transaction_list = $order_metafields->ZAPTransactions();
 
          // If transaction list is not empty, decode else create a an empty collection

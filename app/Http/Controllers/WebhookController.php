@@ -152,13 +152,13 @@ class WebhookController extends Controller
              * recalculate the points to be earn
              */
             if ($points_earned_metafield) {
-                $fulfillments = collect($body['fulfillments']);
-                $success_fullfillment_line_items = $fulfillments
-                    ->filter(fn (array $fulfill) => $fulfill['status'] === 'success')
-                    ->map(fn (array $fulfill) => $fulfill['line_items'])
-                    ->flatten();
+                $fulfilled_line_items = collect([]);
 
-                $total_points_collection = $success_fullfillment_line_items->map(function (array $item) use (&$line_item_points) {
+                collect($body['fulfillments'])
+                    ->filter(fn (array $fulfill) => $fulfill['status'] === 'success')
+                    ->map(fn (array $fulfill) => $fulfilled_line_items->merge($fulfill['line_items']));
+
+                $total_points_collection = $fulfilled_line_items->map(function (array $item) use (&$line_item_points) {
                     $result = ShopPromo::calculatePointsToEarn($item, $line_item_points);
 
                     if (! array_key_exists($result['id'], $line_item_points) ) {

@@ -176,4 +176,64 @@ class ShopPromo
             "points_to_earn" => $calculated_points,
         ];
     }
+
+    public function calculateRefundPoints(array $item, array &$line_item_points): array
+    {
+        $calculated_points = 0;
+        $subtotal_amount = 0;
+
+        $id = strval($item['id']);
+        $amount = floatval($item['price']);
+        $quantity = $item['quantity'];
+
+        $reward_type = self::REWARD_TYPE_DEFAULT;
+        $reward_amount = 0;
+
+        if ( array_key_exists($id, $line_item_points) ) {
+            $calculated_points = floatval($line_item_points[$id]["points_to_earn"] * $quantity);
+            $reward_type = $line_item_points[$id]["reward_type"];
+            $reward_amount = $line_item_points[$id]["reward_amount"];
+        } else {
+            $sku = $item['sku'];
+            $promotion = $this->getPromotion($sku);
+
+            $default_points = $amount * ZAPConstants::ZAP_REWARD_PECENTAGE;
+            $points = $default_points;
+
+            if (! $promotion->isEmpty()) {
+                $promotion = $promotion->first();
+                $reward_type = trim(strtolower($promotion[self::REWARD_TYPE_KEY]));
+                $reward_amount = floatval($promotion[self::REWARD_AMOUNT_KEY]);
+
+                if ($reward_amount > 0) {
+                    switch ($reward_type) {
+                        case self::REWARD_TYPE_PRECISE:
+                            $points = $default_points + $reward_amount;
+                            break;
+                        case self::REWARD_TYPE_MULTIPLIER:
+                            $points = $default_points * $reward_amount;
+                            break;
+                        default:
+                            // Log a warning, unknown reward type, resolve by using the default 2%
+                    }
+                } else {
+                    // Log a warning, promo has a zero or an invalid value
+                }
+            }
+
+            $calculated_points = floatval($points * $quantity);
+        }
+
+        $subtotal_amount = floatval($amount * $quantity);
+        $points_to_credit = $calculated_points;
+
+        return [
+            "id" => $item['id'],
+            "subtotal_amount" => $subtotal_amount,
+            "reward_type" => $reward_type,
+            "reward_amount" => $reward_amount,
+            "points_to_credit" => $points_to_credit,
+            "points_to_earn" => $calculated_points,
+        ];
+    }
 }

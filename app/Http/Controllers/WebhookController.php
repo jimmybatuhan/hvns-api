@@ -152,7 +152,7 @@ class WebhookController extends Controller
              * recalculate the points to be earn
              */
             if ($points_earned_metafield) {
-                $fulfillments = $body['fulfillments'];
+                $fulfillments = collect($body['fulfillments']);
                 $success_fullfillment_line_items = $fulfillments
                     ->filter(fn (array $fulfill) => $fulfill['status'] === 'success')
                     ->map(fn (array $fulfill) => $fulfill['line_items']);

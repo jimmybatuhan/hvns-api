@@ -155,8 +155,11 @@ class WebhookController extends Controller
                 $fulfilled_line_items = collect([]);
 
                 collect($body['fulfillments'])
-                    ->filter(fn (array $fulfill) => $fulfill['status'] === 'success')
-                    ->map(fn (array $fulfill) => $fulfilled_line_items->merge($fulfill['line_items']));
+                    ->filter(fn (array $fulfillment) => $fulfillment['status'] === 'success')
+                    ->each(function (array $fulfillment) use (&$fulfilled_line_items) {
+                        collect($fulfillment['line_items'])
+                            ->each(fn (array $line_item) => $fulfilled_line_items->push($line_item));
+                    });
 
                 $total_points_collection = $fulfilled_line_items->map(function (array $item) use (&$line_item_points) {
                     $result = ShopPromo::calculatePointsToEarn($item, $line_item_points);

@@ -182,6 +182,8 @@ class WebhookController extends Controller
                 $total_subtotal_amount = $total_points_collection->sum('subtotal_amount');
                 $line_item_points_collection = collect($line_item_points);
 
+                $total_points_to_earn = round($total_points_to_earn, 2);
+
                 if ($total_points_to_earn != $points_earned) {
 
                     if ($points_earned > 0) {
@@ -195,7 +197,7 @@ class WebhookController extends Controller
                     ShopifyAdmin::updateMetafieldById($points_earned_metafield, $total_points_to_earn);
                 }
 
-                if ($line_item_points_new_count != $line_item_points_original_count) {
+                if ($line_item_points_new_count > $line_item_points_original_count) {
                     ShopifyAdmin::updateMetafieldById($line_item_points_metafield, $line_item_points_collection->toJson());
                 }
             }

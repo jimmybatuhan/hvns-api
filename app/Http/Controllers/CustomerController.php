@@ -113,18 +113,19 @@ class CustomerController extends Controller
                             ZAPConstants::EMAIL_ALREADY_EXISTS,
                             ZAPConstants::MOBILE_ALREADY_EXISTS
                         ])) {
-                            $zap_membership_response = ZAP::getMembershipData($request->mobile);
+                            $zap_request_mobile = substr($request->mobile,1);
+                            $zap_membership_response = ZAP::getMembershipData($zap_request_mobile);
 
                             $zap_member_data = $zap_membership_response->collect();
 
-                            if (array_key_exists('data', $zap_member_data)) {
+                            if ($zap_member_data->has('data')) {
 
                                 $zap_member_id = $zap_member_data['data']['userId'];
                                 $zap_member_mobile = $zap_member_data['data']['mobile'];
                                 $zap_member_email = $zap_member_data['data']['email'];
 
                                 // if the information matched the existing ZAP member
-                                if ($zap_member_email === $request->email && $zap_member_mobile === $request->mobile) {
+                                if ($zap_member_email === $request->email && $zap_member_mobile === $zap_request_mobile) {
 
                                     // get the member balance
                                     $zap_member_balance = ZAP::inquireBalance($request->mobile);

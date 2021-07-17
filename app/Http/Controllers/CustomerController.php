@@ -502,7 +502,7 @@ class CustomerController extends Controller
         return response()->json($customer_transactions);
     }
 
-    public function registerShopifyCustomerToZAP(Request $request): JsonResponse
+    public function createZAPMember(Request $request): JsonResponse
     {
         $response = [];
         $validator = Validator::make($request->all(), [

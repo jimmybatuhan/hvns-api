@@ -25,6 +25,7 @@ Route::middleware(['log-route', 'cors'])->group(function () {
     Route::post('signup', [CustomerController::class, 'postProcessRegistration'])->name('register');
 
     Route::prefix('member')->group(function () {
+        Route::post('create', [CustomerController::class, 'createZAPMember'])->name('create-zap-member');
         Route::get('data', [CustomerController::class, 'getZAPMemberData'])->name('zap-member-data');
         Route::get('transactions', [CustomerController::class, 'getZAPMemberTransactions'])->name('zap-member-transactions');
         Route::post('update', [CustomerController::class, 'postProcessUpdate'])->name('customer-update');

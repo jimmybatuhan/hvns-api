@@ -35,26 +35,26 @@ class CustomerController extends Controller
                 'namespace' => ZAPConstants::MEMBER_NAMESPACE,
                 'value' => $zap_id,
             ])
-            ->push([
-                'key' => ZAPConstants::MEMBER_POINTS_KEY,
-                'namespace' => ZAPConstants::MEMBER_NAMESPACE,
-                'value' => $balance,
-            ])
-            ->push([
-                'key' => ZAPConstants::MEMBER_SINCE_KEY,
-                'namespace' => ZAPConstants::MEMBER_NAMESPACE,
-                'value' => now()->format('F d, Y'),
-            ])
-            ->push([
-                'key' => ZAPConstants::MEMBER_BIRTHDAY_KEY,
-                'namespace' => ZAPConstants::MEMBER_NAMESPACE,
-                'value' => (new Carbon($birthday))->format('Y-m-d'),
-            ])
-            ->push([
-                'key' => ZAPConstants::MEMBER_GENDER_KEY,
-                'namespace' => ZAPConstants::MEMBER_NAMESPACE,
-                'value' => $gender,
-            ])
+                ->push([
+                    'key' => ZAPConstants::MEMBER_POINTS_KEY,
+                    'namespace' => ZAPConstants::MEMBER_NAMESPACE,
+                    'value' => $balance,
+                ])
+                ->push([
+                    'key' => ZAPConstants::MEMBER_SINCE_KEY,
+                    'namespace' => ZAPConstants::MEMBER_NAMESPACE,
+                    'value' => now()->format('F d, Y'),
+                ])
+                ->push([
+                    'key' => ZAPConstants::MEMBER_BIRTHDAY_KEY,
+                    'namespace' => ZAPConstants::MEMBER_NAMESPACE,
+                    'value' => (new Carbon($birthday))->format('Y-m-d'),
+                ])
+                ->push([
+                    'key' => ZAPConstants::MEMBER_GENDER_KEY,
+                    'namespace' => ZAPConstants::MEMBER_NAMESPACE,
+                    'value' => $gender,
+                ])
         );
     }
 
@@ -76,7 +76,7 @@ class CustomerController extends Controller
             'join_rewards' => 'required|bail',
         ]);
 
-        if (! $validator->fails()) {
+        if (!$validator->fails()) {
 
             // Attempt to create a shopify customer
             $shopify_response = ShopifyAdmin::createCustomer(
@@ -89,10 +89,10 @@ class CustomerController extends Controller
 
             $shopify_response_body = $shopify_response->collect();
 
-            if (! $shopify_response->failed()) {
+            if (!$shopify_response->failed()) {
                 $shopify_customer_id = $shopify_response_body["customer"]["id"];
 
-                if(intval($request->join_rewards)){
+                if (intval($request->join_rewards)) {
 
                     // Attempt to create a member in ZAP
                     $zap_response = ZAP::createMember(
@@ -113,7 +113,7 @@ class CustomerController extends Controller
                             ZAPConstants::EMAIL_ALREADY_EXISTS,
                             ZAPConstants::MOBILE_ALREADY_EXISTS
                         ])) {
-                            $zap_request_mobile = substr($request->mobile,1);
+                            $zap_request_mobile = substr($request->mobile, 1);
                             $zap_membership_response = ZAP::getMembershipData($zap_request_mobile);
 
                             $zap_member_data = $zap_membership_response->collect();
@@ -130,7 +130,7 @@ class CustomerController extends Controller
                                     // get the member balance
                                     $zap_member_balance = ZAP::inquireBalance($request->mobile);
                                     $zap_member_balance_data = $zap_member_balance->collect();
-                                    $customer_current_points = ! empty($zap_member_balance_data['data']['currencies'])
+                                    $customer_current_points = !empty($zap_member_balance_data['data']['currencies'])
                                         ? $zap_member_balance_data['data']['currencies'][0]['validPoints']
                                         : 0.00;
 
@@ -177,7 +177,6 @@ class CustomerController extends Controller
                         }
                     } else {
                         $zap_member_id = $zap_response_body['data']['userId'];
-                        $shopify_create_at = $shopify_response_body["customer"]["created_at"];
 
                         $this->addMetafieldsToNewCustomer(
                             $shopify_customer_id,
@@ -192,8 +191,7 @@ class CustomerController extends Controller
                             "message" => "user created",
                         ];
                     }
-
-                }else{
+                } else {
 
                     $this->addMetafieldsToNewCustomer(
                         $shopify_customer_id,
@@ -207,7 +205,6 @@ class CustomerController extends Controller
                         "success" => true,
                         "message" => "user created",
                     ];
-
                 }
             } else {
                 collect($shopify_response_body["errors"])
@@ -239,8 +236,8 @@ class CustomerController extends Controller
 
         $validator = Validator::make($request->all(), [
             'shopify_customer_id' => ['required', 'bail', function ($attribute, $value, $fail) use (&$customer_data) {
-                $customer_data = $this->getCustomerData( $value );
-                if (! $customer_data['success']) {
+                $customer_data = $this->getCustomerData($value);
+                if (!$customer_data['success']) {
                     $fail($customer_data['error']);
                 }
             }],
@@ -251,16 +248,16 @@ class CustomerController extends Controller
             'otp_code' => 'required|bail',
         ]);
 
-        if (! $validator->fails()) {
+        if (!$validator->fails()) {
             $shopify_response = ShopifyAdmin::updateCustomer(
                 $request->shopify_customer_id,
                 $request->first_name,
                 $request->last_name
             );
 
-            if (! $shopify_response->failed()) {
+            if (!$shopify_response->failed()) {
                 $zap_response = ZAP::updateMember(
-                    substr( $request->mobile, 1 ),
+                    substr($request->mobile, 1),
                     $request->first_name,
                     $request->last_name,
                     $request->otp_ref,
@@ -320,7 +317,7 @@ class CustomerController extends Controller
         $customer_data_resp = [];
         $shopify_customer_resp = ShopifyAdmin::getCustomerById($shopify_customer_id);
 
-        if (! $shopify_customer_resp->serverError()){
+        if (!$shopify_customer_resp->serverError()) {
             if ($shopify_customer_resp->status() === Response::HTTP_NOT_FOUND) {
                 $customer_data_resp = [
                     'success' => false,
@@ -376,7 +373,7 @@ class CustomerController extends Controller
             'mobile' => 'required',
         ]);
 
-        if (! $validator->fails()) {
+        if (!$validator->fails()) {
             $zap_resp = ZAP::sendOTP(
                 ZAPConstants::OTP_PURPOSE_MEMBERSHIP_UPDATE,
                 substr($request->mobile, 1)
@@ -386,7 +383,6 @@ class CustomerController extends Controller
                 'success' => true,
                 'otp_ref_id' => $otp_data['data']['refId'],
             ];
-
         } else {
             $response = [
                 'success' => false,
@@ -408,7 +404,7 @@ class CustomerController extends Controller
             ],
         ]);
 
-        if (! $validator->fails()) {
+        if (!$validator->fails()) {
             // Create Shopify account
         } else {
             $view = view('otp', [
@@ -470,7 +466,7 @@ class CustomerController extends Controller
             });
         }
 
-        if (! is_null($zap_member_id)) {
+        if (!is_null($zap_member_id)) {
             $member_trasactions_response = ZAP::getUserTransactions($customer_mobile);
             if ($member_trasactions_response->ok()) {
                 $transactions = collect($member_trasactions_response->collect()['data']['transactions']);
@@ -488,9 +484,9 @@ class CustomerController extends Controller
 
                 if ($start_date && $end_date) {
                     $zap_transactions = $zap_transactions
-                        ->filter(fn ($transaction) =>
-                            (new Carbon($transaction['transaction_date']))->between($start_date, $end_date)
-                    );
+                        ->filter(
+                            fn ($transaction) => (new Carbon($transaction['transaction_date']))->between($start_date, $end_date)
+                        );
                 }
             }
         }
@@ -528,7 +524,6 @@ class CustomerController extends Controller
 
         if ($zap_response->failed()) {
             $zap_error_code = $zap_response_body["errorCode"];
-
             switch ($zap_error_code) {
                 case ZAPConstants::EMAIL_ALREADY_EXISTS:
                     throw new ValidationException('email already exists');
@@ -540,13 +535,15 @@ class CustomerController extends Controller
                     throw new ValidationException('unexpected error occured');
                     break;
             }
-
+        } else {
+            $zap_id = $zap_response['data']['userId'];
+            $this->addMetafieldsToNewCustomer($request->customer_id, $zap_id, 0.00, $request->gender, $request->birthday);
             $response = [
                 "success" => true,
                 "errors" => $validator->getMessageBag(),
             ];
 
-        return response()->json($response);
+            return response()->json($response);
         }
     }
 }

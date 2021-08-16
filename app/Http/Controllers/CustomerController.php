@@ -12,7 +12,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
 class CustomerController extends Controller
@@ -195,7 +194,7 @@ class CustomerController extends Controller
 
                     $this->addMetafieldsToNewCustomer(
                         $shopify_customer_id,
-                        "",
+                        "N/A",
                         0.00,
                         $request->gender,
                         $request->birthday
@@ -538,6 +537,7 @@ class CustomerController extends Controller
         } else {
             $zap_id = $zap_response['data']['userId'];
             $this->addMetafieldsToNewCustomer($request->customer_id, $zap_id, 0.00, $request->gender, $request->birthday);
+
             $response = [
                 "success" => true,
                 "errors" => $validator->getMessageBag(),

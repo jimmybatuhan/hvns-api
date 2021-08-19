@@ -500,6 +500,7 @@ class CustomerController extends Controller
     public function createZAPMember(Request $request): JsonResponse
     {
         $response = [];
+        $status = 200;
         $validator = Validator::make($request->all(), [
             'customer_id' => 'required|bail',
             'first_name' => 'required|bail',
@@ -510,40 +511,47 @@ class CustomerController extends Controller
             'mobile' => 'required|bail',
         ]);
 
-        $zap_response = ZAP::createMember(
-            $request->mobile,
-            $request->first_name,
-            $request->last_name,
-            $request->email,
-            $request->gender,
-            new Carbon($request->birthday)
-        );
+        if (!$validator->fails()) {
 
-        $zap_response_body = $zap_response->collect();
+            $zap_response = ZAP::createMember(
+                $request->mobile,
+                $request->first_name,
+                $request->last_name,
+                $request->email,
+                $request->gender,
+                new Carbon($request->birthday)
+            );
 
-        if ($zap_response->failed()) {
-            $zap_error_code = $zap_response_body["errorCode"];
-            switch ($zap_error_code) {
-                case ZAPConstants::EMAIL_ALREADY_EXISTS:
-                    throw new ValidationException('email already exists');
-                    break;
-                case ZAPConstants::MOBILE_ALREADY_EXISTS:
-                    throw new ValidationException('mobile number already exists');
-                    break;
-                default:
-                    throw new ValidationException('unexpected error occured');
-                    break;
+            $zap_response_body = $zap_response->collect();
+
+            if ($zap_response->failed()) {
+                $response['success'] = false;
+                $status = 400;
+                $zap_error_code = $zap_response_body["errorCode"];
+                switch ($zap_error_code) {
+                    case ZAPConstants::EMAIL_ALREADY_EXISTS:
+                        $response['error'] = 'email already exists';
+                        break;
+                    case ZAPConstants::MOBILE_ALREADY_EXISTS:
+                        $response['error'] = 'mobile number already exists';
+                        break;
+                    default:
+                        $response['error'] = 'unexpected error occured';
+                        break;
+                }
+            } else {
+                $zap_id = $zap_response['data']['userId'];
+                $this->addMetafieldsToNewCustomer($request->customer_id, $zap_id, 0.00, $request->gender, $request->birthday);
+                $response = [
+                    "success" => true,
+                ];
             }
+
         } else {
-            $zap_id = $zap_response['data']['userId'];
-            $this->addMetafieldsToNewCustomer($request->customer_id, $zap_id, 0.00, $request->gender, $request->birthday);
-
-            $response = [
-                "success" => true,
-                "errors" => $validator->getMessageBag(),
-            ];
-
-            return response()->json($response);
+            $response['success'] = true;
+            $response['error'] = $validator->getMessageBag();
         }
+
+        return response()->json($response, $status);
     }
 }

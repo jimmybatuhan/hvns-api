@@ -124,7 +124,7 @@ class CustomerController extends Controller
                                 $zap_member_email = $zap_member_data['data']['email'];
 
                                 // if the information matched the existing ZAP member
-                                if ($zap_member_email === $request->email && $zap_member_mobile === $zap_request_mobile) {
+                                if ($zap_member_mobile === $zap_request_mobile) {
 
                                     // get the member balance
                                     $zap_member_balance = ZAP::inquireBalance($request->mobile);

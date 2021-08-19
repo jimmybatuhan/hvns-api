@@ -184,6 +184,8 @@ class CustomerController extends Controller
                                         $request->birthday
                                     );
 
+                                    $this->tagCustomerAsZAPMember($shopify_customer_id);
+
                                     $response = [
                                         "success" => true,
                                         "message" => "user created",
@@ -244,6 +246,8 @@ class CustomerController extends Controller
                         $request->gender,
                         $request->birthday
                     );
+
+                    $this->tagCustomerAsZAPMember($shopify_customer_id);
 
                     $response = [
                         "success" => true,
@@ -610,6 +614,8 @@ class CustomerController extends Controller
                                 $request->birthday
                             );
 
+                            $this->tagCustomerAsZAPMember($request->customer_id);
+
                             $response = [
                                 "success" => true,
                             ];
@@ -645,6 +651,8 @@ class CustomerController extends Controller
             } else {
                 $zap_id = $zap_response['data']['userId'];
                 $this->addMetafieldsToNewCustomer($request->customer_id, $zap_id, 0.00, $request->gender, $request->birthday);
+                $this->tagCustomerAsZAPMember($request->customer_id);
+
                 $response = [
                     "success" => true,
                 ];

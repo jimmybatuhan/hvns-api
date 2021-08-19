@@ -120,6 +120,16 @@ class ShopifyAdmin
         ]);
     }
 
+    public function addTagsToCustomer(string $customer_id, string $tags): Response
+    {
+        return $this->http->put($this->admin_api . "/customers/{$customer_id}.json", [
+            "customer" => [
+                "id" =>$customer_id,
+                "tags"=> $tags
+            ]
+        ]);
+    }
+
     public function deleteCustomer(string $customer_id): Response
     {
         return $this->http->delete($this->admin_api . "/customers/{$customer_id}.json");

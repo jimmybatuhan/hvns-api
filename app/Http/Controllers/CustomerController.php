@@ -79,7 +79,7 @@ class CustomerController extends Controller
             $metafields_to_add->push([
                 'key' => ZAPConstants::MEMBER_GENDER_KEY,
                 'namespace' => ZAPConstants::MEMBER_NAMESPACE,
-                'value' => (new Carbon($birthday))->format('Y-m-d'),
+                'value' => $gender,
             ]);
 
         }else{

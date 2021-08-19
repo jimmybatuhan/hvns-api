@@ -49,6 +49,42 @@ class MetafieldMixin
         };
     }
 
+    public function MemberBirthdayId(): Closure
+    {
+        return function (?string $meta_key = null)
+        {
+           return $this->metafield(
+               ZAPConstants::MEMBER_NAMESPACE,
+               ZAPConstants::MEMBER_BIRTHDAY_KEY,
+               $meta_key
+            );
+        };
+    }
+
+    public function MemberSinceId(): Closure
+    {
+        return function (?string $meta_key = null)
+        {
+           return $this->metafield(
+               ZAPConstants::MEMBER_NAMESPACE,
+               ZAPConstants::MEMBER_SINCE_KEY,
+               $meta_key
+            );
+        };
+    }
+
+    public function MemberGenderId(): Closure
+    {
+        return function (?string $meta_key = null)
+        {
+           return $this->metafield(
+               ZAPConstants::MEMBER_NAMESPACE,
+               ZAPConstants::MEMBER_GENDER_KEY,
+               $meta_key
+            );
+        };
+    }
+
     public function ZAPTransactions(): Closure
     {
         return function (?string $meta_key = null)

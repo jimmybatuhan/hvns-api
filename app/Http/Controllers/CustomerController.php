@@ -185,6 +185,8 @@ class CustomerController extends Controller
                             $request->birthday
                         );
 
+                        ShopifyAdmin::addTagsToCustomer($shopify_customer_id, 'ZAP_MEMBER');
+
                         $response = [
                             "success" => true,
                             "message" => "user created",
@@ -546,12 +548,22 @@ class CustomerController extends Controller
                     "success" => true,
                 ];
             }
-
         } else {
             $response['success'] = true;
             $response['error'] = $validator->getMessageBag();
         }
 
         return response()->json($response, $status);
+    }
+
+    private function tagCustomerAsZAPMember(string $customer_id): void
+    {
+        $shopify_customer_resp = ShopifyAdmin::getCustomerById($customer_id);
+        $shopify_customer_resp_body = $shopify_customer_resp->collect();
+
+        $customer_tags = $shopify_customer_resp_body['customer']['tags'];
+        $customer_tags .= ", ZAP_MEMBER";
+
+        ShopifyAdmin::addTagsToCustomer($customer_id, $customer_tags);
     }
 }

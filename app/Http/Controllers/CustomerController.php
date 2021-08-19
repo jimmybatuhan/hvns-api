@@ -247,8 +247,6 @@ class CustomerController extends Controller
                         $request->birthday
                     );
 
-                    $this->tagCustomerAsZAPMember($shopify_customer_id);
-
                     $response = [
                         "success" => true,
                         "message" => "user created",

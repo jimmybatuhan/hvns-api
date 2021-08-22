@@ -170,7 +170,7 @@ class WebhookController extends Controller
                     ->each(function (array $fulfillment) use ($returned_items, &$fulfilled_line_items) {
                         collect($fulfillment['line_items'])
                             /** if item is does not exits in the return items array include to the computation */
-                            ->filter(fn (array $line_item) => ! in_array($line_item['id'], $returned_items))
+                            ->filter(fn (array $line_item) => ! in_array($line_item['product_id'], $returned_items))
 
                             /** collect line items that will be calculated */
                             ->each(fn (array $line_item) => $fulfilled_line_items->push($line_item));

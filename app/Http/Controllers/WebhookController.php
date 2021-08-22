@@ -145,7 +145,7 @@ class WebhookController extends Controller
 
             $line_item_points_metafield = $order_metafields->getLineItemPointsMetafieldId();
             $line_item_points = $order_metafields->getLineItemPointsMetafield();
-            $line_item_points_original_count = sizeof($line_item_points);
+            $line_item_points_original_count = count($line_item_points);
 
             /**
              * if the order is not cancelled and has a points_to_earn metafield
@@ -176,7 +176,7 @@ class WebhookController extends Controller
                     return $result;
                 });
 
-                $line_item_points_new_count = sizeof($line_item_points);
+                $line_item_points_new_count = count($line_item_points);
 
                 $total_points_to_earn = $total_points_collection->sum('points_to_credit');
                 $total_subtotal_amount = $total_points_collection->sum('subtotal_amount');

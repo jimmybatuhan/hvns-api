@@ -14,7 +14,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
+
 
 class WebhookController extends Controller
 {
@@ -134,6 +136,15 @@ class WebhookController extends Controller
         $body = $request->all();
         $order_id = $body['id'];
         $is_cancelled = !is_null($body['cancelled_at']);
+        $tags = collect(explode(",", $body['tags']));
+
+        /**
+         * get returned items if theres any
+         */
+        $returned_items = $tags
+            ->filter(fn ($tag) => Str::contains($tag, 'RETURN'))
+            ->map(fn ($tag) => trim(Str::after($tag, 'RETURN ')))
+            ->toArray();
 
         if ($is_cancelled) {
             abort(200);
@@ -156,8 +167,12 @@ class WebhookController extends Controller
 
                 collect($body['fulfillments'])
                     ->filter(fn (array $fulfillment) => $fulfillment['status'] === 'success')
-                    ->each(function (array $fulfillment) use (&$fulfilled_line_items) {
+                    ->each(function (array $fulfillment) use ($returned_items, &$fulfilled_line_items) {
                         collect($fulfillment['line_items'])
+                            /** if item is does not exits in the return items array include to the computation */
+                            ->filter(fn (array $line_item) => ! in_array($line_item['id'], $returned_items))
+
+                            /** collect line items that will be calculated */
                             ->each(fn (array $line_item) => $fulfilled_line_items->push($line_item));
                     });
 

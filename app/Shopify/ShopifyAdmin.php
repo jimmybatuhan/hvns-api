@@ -131,7 +131,7 @@ class ShopifyAdmin
 
     public function addTagsToOrder(string $order_id, string $tags): Response
     {
-        return $this->http->put($this->admin_api . "/orders/${$order_id}.json", [
+        return $this->http->put($this->admin_api . "/orders/{$order_id}.json", [
             "order" => [
                 "id" => $order_id,
                 "tags" => $tags

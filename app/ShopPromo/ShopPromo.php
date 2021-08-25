@@ -72,7 +72,6 @@ class ShopPromo
         $calculated_points = 0;
 
         $sku = $item['sku'];
-        $quantity = $item['quantity'];
         $amount = floatval($item['price']);
         $promotion = $this->getPromotion($sku);
         $reward_type = self::REWARD_TYPE_DEFAULT;

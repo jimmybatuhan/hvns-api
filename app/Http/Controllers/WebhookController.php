@@ -201,13 +201,13 @@ class WebhookController extends Controller
                                 $line_item['original_quantity'] = $line_item['quantity'];
                                 $variant_id = $line_item['variant_id'];
                                 $returned = $returned_items
-                                    ->filter(fn ($returned_item) => $returned_item['id'] === $variant_id)
+                                    ->filter(fn ($returned_item) => $returned_item['id'] == $variant_id)
                                     ->first();
 
                                 /** if items is returned, deduct the quantity */
                                 if ($returned) {
                                     // defaults to zero if the reduced quantity is negative
-                                    $line_item['quantity'] = max($line_item['quantity'] - $returned['quantity'], 0);
+                                    $line_item['quantity'] = max($line_item['quantity'] - $returned['total'], 0);
                                 }
 
                                 $fulfilled_line_items->push($line_item);

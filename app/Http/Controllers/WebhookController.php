@@ -142,8 +142,20 @@ class WebhookController extends Controller
         /** get returned items if theres any */
         $returned_items = $tags
             ->filter(fn ($tag) => Str::contains($tag, 'RETURN'))
-            ->map(fn ($tag) => trim(Str::after($tag, 'RETURN ')))
-            ->toArray();
+            ->map(function ($tag) {
+                $command = explode(" ", $tag);
+
+                /**
+                 * it is possible that this approach will throw an undefined index
+                 * but i think this is safer rather than processing an invalid command
+                 * causing unwanted behavior.
+                 */
+                return [
+                    'keyword' => $command[0],
+                    'id' => $command[1],
+                    'total' => $command[2],
+                ];
+            });
 
         /** if order has a order */
         if ($customer) {
@@ -184,11 +196,21 @@ class WebhookController extends Controller
                     ->filter(fn (array $fulfillment) => $fulfillment['status'] === 'success')
                     ->each(function (array $fulfillment) use ($returned_items, &$fulfilled_line_items) {
                         collect($fulfillment['line_items'])
-                            /** if item is does not exits in the return items array include to the computation */
-                            ->filter(fn (array $line_item) => ! in_array($line_item['variant_id'], $returned_items))
-
                             /** collect line items that will be calculated */
-                            ->each(fn (array $line_item) => $fulfilled_line_items->push($line_item));
+                            ->each(function (array $line_item) use ($returned_items, &$fulfilled_line_items) {
+                                $line_item['original_quantity'] = $line_item['quantity'];
+                                $variant_id = $line_item['variant_id'];
+                                $returned = $returned_items
+                                    ->filter(fn ($returned_item) => $returned_item['id'] === $variant_id);
+
+                                /** if items is returned, deduct the quantity */
+                                if ($returned) {
+                                    // defaults to zero if the reduced quantity is negative
+                                    $line_item['quantity'] = max($line_item['quantity'] - $returned['quantity'], 0);
+                                }
+
+                                $fulfilled_line_items->push($line_item);
+                            });
                     });
 
                 $total_points_collection = $fulfilled_line_items->map(function (array $item) use (&$line_item_points) {

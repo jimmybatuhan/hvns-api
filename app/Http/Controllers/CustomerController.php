@@ -591,7 +591,6 @@ class CustomerController extends Controller
 
                         $zap_member_id = $zap_member_data['data']['userId'];
                         $zap_member_mobile = $zap_member_data['data']['mobile'];
-                        $zap_member_email = $zap_member_data['data']['email'];
 
                         // if the information matched the existing ZAP member
                         if ($zap_member_mobile === $zap_request_mobile) {

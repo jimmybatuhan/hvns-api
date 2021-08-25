@@ -137,14 +137,29 @@ class WebhookController extends Controller
         $order_id = $body['id'];
         $is_cancelled = !is_null($body['cancelled_at']);
         $tags = collect(explode(",", $body['tags']));
+        $customer = $body['customer'];
 
-        /**
-         * get returned items if theres any
-         */
+        /** get returned items if theres any */
         $returned_items = $tags
             ->filter(fn ($tag) => Str::contains($tag, 'RETURN'))
             ->map(fn ($tag) => trim(Str::after($tag, 'RETURN ')))
             ->toArray();
+
+        /** if order has a order */
+        if ($customer) {
+            $customer_metafields = ShopifyAdmin::fetchMetafield($customer['id'], ShopifyConstants::CUSTOMER_RESOURCE);
+            $customer_member_id = $customer_metafields->ZAPMemberId();
+
+            /**
+             *  if the customer is a zap memberm and
+             *  the order doesnt not have a zap_member_order tag
+             * */
+            if (($customer_member_id !== 'N/A' || !empty($customer_member_id))
+                && !$tags->contains('ZAP_MEMBER_ORDER')) {
+                    $tags->push('ZAP_MEMBER_ORDER');
+                    ShopifyAdmin::addTagsToOrder($order_id, $tags->implode(','));
+            }
+        }
 
         if ($is_cancelled) {
             abort(200);

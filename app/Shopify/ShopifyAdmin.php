@@ -40,7 +40,7 @@ class ShopifyAdmin
                 'id' => $id,
                 'metafields' => $metafields->map(function ($metafield) {
 
-                    if (! array_key_exists('value_type', $metafield)) {
+                    if (!array_key_exists('value_type', $metafield)) {
                         $metafield['value_type'] = Constants::METAFIELD_VALUE_TYPE_STRING;
                     }
 
@@ -77,7 +77,6 @@ class ShopifyAdmin
         }
 
         return $response;
-
     }
 
     public function fetchMetafield(string $id, string $resource): Response
@@ -92,8 +91,8 @@ class ShopifyAdmin
         $filters = collect($query)->map(function ($item, $key) {
             return "$key:$item";
         })
-        // TODO add more 'connectives' in the query
-        ->implode(" AND ");
+            // TODO add more 'connectives' in the query
+            ->implode(" AND ");
 
         return $this->http->get($this->customer_search_resource_url, [
             'query' => $filters,
@@ -124,8 +123,18 @@ class ShopifyAdmin
     {
         return $this->http->put($this->admin_api . "/customers/{$customer_id}.json", [
             "customer" => [
-                "id" =>$customer_id,
-                "tags"=> $tags
+                "id" => $customer_id,
+                "tags" => $tags
+            ]
+        ]);
+    }
+
+    public function addTagsToOrder(string $order_id, string $tags): Response
+    {
+        return $this->http->put($this->admin_api . "/orders/${$order_id}.json", [
+            "order" => [
+                "id" => $order_id,
+                "tags" => $tags
             ]
         ]);
     }

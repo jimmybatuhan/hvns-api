@@ -206,19 +206,19 @@ class WebhookController extends Controller
                         collect($fulfillment['line_items'])
                             /** collect line items that will be calculated */
                             ->each(function (array $line_item) use ($returned_items, $should_return_all, &$fulfilled_line_items) {
-                                $line_item['original_quantity'] = $line_item['quantity'];
-                                $variant_id = $line_item['variant_id'];
-                                $returned = $returned_items
-                                    ->filter(fn ($returned_item) => $returned_item['id'] == $variant_id)
-                                    ->first();
+                                // $line_item['original_quantity'] = $line_item['quantity'];
+                                // $variant_id = $line_item['variant_id'];
+                                // $returned = $returned_items
+                                //     ->filter(fn ($returned_item) => $returned_item['id'] == $variant_id)
+                                //     ->first();
 
-                                /** if items is returned, deduct the quantity */
-                                if ($returned) {
-                                    // defaults to zero if the reduced quantity is negative
-                                    $line_item['quantity'] = max($line_item['quantity'] - $returned['total'], 0);
-                                } elseif ($should_return_all) {
-                                    $line_item['quantity'] = 0;
-                                }
+                                // /** if items is returned, deduct the quantity */
+                                // if ($returned) {
+                                //     // defaults to zero if the reduced quantity is negative
+                                //     $line_item['quantity'] = max($line_item['quantity'] - $returned['total'], 0);
+                                // } elseif ($should_return_all) {
+                                //     $line_item['quantity'] = 0;
+                                // }
 
                                 $fulfilled_line_items->push($line_item);
                             });

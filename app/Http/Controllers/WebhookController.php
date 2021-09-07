@@ -138,12 +138,17 @@ class WebhookController extends Controller
         $is_cancelled = !is_null($body['cancelled_at']);
         $tags = collect(explode(",", $body['tags']));
         $customer = $body['customer'];
+        $should_return_all = false;
 
         /** get returned items if theres any */
         $returned_items = $tags
             ->filter(fn ($tag) => Str::contains($tag, 'RETURN'))
-            ->map(function ($tag) {
+            ->map(function ($tag) use ($should_return_all) {
                 $command = explode(" ", $tag);
+
+                if ($command[1] == 'ALL') {
+                    $should_return_all = true;
+                }
 
                 /**
                  * it is possible that this approach will throw an undefined index
@@ -194,10 +199,10 @@ class WebhookController extends Controller
 
                 collect($body['fulfillments'])
                     ->filter(fn (array $fulfillment) => $fulfillment['status'] === 'success')
-                    ->each(function (array $fulfillment) use ($returned_items, &$fulfilled_line_items) {
+                    ->each(function (array $fulfillment) use ($returned_items, $should_return_all, &$fulfilled_line_items) {
                         collect($fulfillment['line_items'])
                             /** collect line items that will be calculated */
-                            ->each(function (array $line_item) use ($returned_items, &$fulfilled_line_items) {
+                            ->each(function (array $line_item) use ($returned_items, $should_return_all, &$fulfilled_line_items) {
                                 $line_item['original_quantity'] = $line_item['quantity'];
                                 $variant_id = $line_item['variant_id'];
                                 $returned = $returned_items
@@ -208,6 +213,8 @@ class WebhookController extends Controller
                                 if ($returned) {
                                     // defaults to zero if the reduced quantity is negative
                                     $line_item['quantity'] = max($line_item['quantity'] - $returned['total'], 0);
+                                } elseif ($should_return_all) {
+                                    $line_item['quantity'] = 0;
                                 }
 
                                 $fulfilled_line_items->push($line_item);

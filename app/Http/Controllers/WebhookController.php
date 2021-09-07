@@ -143,9 +143,12 @@ class WebhookController extends Controller
         /** get returned items if theres any */
         $returned_items = $tags
             ->filter(fn ($tag) => Str::contains($tag, 'RETURN'))
-            ->map(function ($tag) use ($should_return_all) {
+            ->map(function ($tag) use (&$should_return_all) {
                 $command = explode(" ", $tag);
 
+                /**
+                 * return all items
+                 */
                 if ($command[1] == 'ALL') {
                     $should_return_all = true;
                 }
@@ -223,7 +226,6 @@ class WebhookController extends Controller
 
                 $total_points_collection = $fulfilled_line_items->map(function (array $item) use (&$line_item_points) {
                     $result = ShopPromo::calculatePointsToEarn($item, $line_item_points);
-
                     if (! array_key_exists($result['id'], $line_item_points) ) {
                         $line_item_points[$result['id']] = [
                             "id" => $result['id'],

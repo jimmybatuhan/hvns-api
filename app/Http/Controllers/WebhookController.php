@@ -255,7 +255,9 @@ class WebhookController extends Controller
                         $this->customerDeductZAPPoints($body, $points_earned);
                     }
 
-                    if (floatval($total_subtotal_amount) >= ShopifyConstants::MINIMUM_SUBTOTAL_TO_EARN) {
+                    if (floatval($total_subtotal_amount) >= ShopifyConstants::MINIMUM_SUBTOTAL_TO_EARN
+                        && $total_points_to_earn > 0
+                     ) {
                         $this->customerRewardPoints($body, $total_points_to_earn);
                     }
 

@@ -141,7 +141,13 @@ class WebhookController extends Controller
         $should_return_all = false;
 
         /** get returned items if theres any */
-        $returned_items = $tags
+
+        $tags_trimmed = $tags
+            ->map(function ($tag) use (&$should_return_all) {
+                return trim($tag);
+            });
+
+        $returned_items = $tags_trimmed
             ->filter(fn ($tag) => Str::contains($tag, 'RETURN'))
             ->map(function ($tag) use (&$should_return_all) {
                 $command = explode(" ", $tag);
@@ -158,11 +164,16 @@ class WebhookController extends Controller
                  * but i think this is safer rather than processing an invalid command
                  * causing unwanted behavior.
                  */
-                return [
-                    'keyword' => $command[0],
-                    'id' => $command[1],
-                    'total' => $command[2],
-                ];
+
+                if($should_return_all){
+                    return [];
+                }else {
+                    return [
+                        'keyword' => $command[0],
+                        'id' => $command[1],
+                        'total' => $command[2],
+                    ];
+                }
             });
 
         /** if order has a order */
@@ -174,6 +185,7 @@ class WebhookController extends Controller
              *  if the customer is a zap memberm and
              *  the order doesnt not have a zap_member_order tag
              * */
+
             if (($customer_member_id !== 'N/A' || !empty($customer_member_id))
                 && !$tags->contains('ZAP_MEMBER_ORDER')) {
                     $tags->push('ZAP_MEMBER_ORDER');
@@ -248,6 +260,8 @@ class WebhookController extends Controller
                 $line_item_points_collection = collect($line_item_points);
 
                 $total_points_to_earn = round($total_points_to_earn, 2);
+
+                // dd($total_points_to_earn);
 
                 if ($total_points_to_earn != $points_earned) {
 

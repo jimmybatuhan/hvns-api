@@ -45,7 +45,7 @@ class WebhookController extends Controller
                 $order_transaction_list = $order_metafields->ZAPTransactions();
                 $customer_balance = $current_balance_response->collect();
                 $customer_currencies = $customer_balance['data']['currencies'];
-                $current_customer_balance = ! empty($customer_currencies) ? $customer_currencies[0]['validPoints'] : 0.00;
+                $current_customer_balance = !empty($customer_currencies) ? $customer_currencies[0]['validPoints'] : 0.00;
                 $transactions = collect();
                 $transactions_metafield_id = null;
 
@@ -98,17 +98,17 @@ class WebhookController extends Controller
                     }
                 } else {
                     /**
-                         * compute the total points to be earned, (points will be added to zap when order is fulfilled)
-                         */
-                        $line_items = collect($body['line_items']);
-                        $line_items_points = $line_items->map(fn (array $item) => ShopPromo::calculateInitialPointsToEarn($item));
-                        $keyed_line_item_points = $line_items_points->keyBy('id');
+                     * compute the total points to be earned, (points will be added to zap when order is fulfilled)
+                     */
+                    $line_items = collect($body['line_items']);
+                    $line_items_points = $line_items->map(fn (array $item) => ShopPromo::calculateInitialPointsToEarn($item));
+                    $keyed_line_item_points = $line_items_points->keyBy('id');
 
-                        //add metafield for points to earn, and points earned
-                        ShopifyAdmin::addMetafields(
-                            ShopifyConstants::ORDER_RESOURCE,
-                            $order_id,
-                            collect()
+                    //add metafield for points to earn, and points earned
+                    ShopifyAdmin::addMetafields(
+                        ShopifyConstants::ORDER_RESOURCE,
+                        $order_id,
+                        collect()
                             ->push([
                                 'key' => ZAPConstants::POINTS_EARNED,
                                 'value' => 0,
@@ -120,7 +120,7 @@ class WebhookController extends Controller
                                 'value_type' => ShopifyConstants::METAFIELD_VALUE_TYPE_JSON_STRING,
                                 'namespace' => ZAPConstants::TRANSACTION_NAMESPACE
                             ])
-                        );
+                    );
                 }
             }
         }
@@ -142,147 +142,158 @@ class WebhookController extends Controller
 
         /** get returned items if theres any */
 
-        $tags_trimmed = $tags
-            ->map(function ($tag) use (&$should_return_all) {
-                return trim($tag);
-            });
-
-        $returned_items = $tags_trimmed
-            ->filter(fn ($tag) => Str::contains($tag, 'RETURN'))
-            ->map(function ($tag) use (&$should_return_all) {
-                $command = explode(" ", $tag);
-
-                /**
-                 * return all items
-                 */
-                if ($command[1] == 'ALL') {
-                    $should_return_all = true;
-                }
-
-                /**
-                 * it is possible that this approach will throw an undefined index
-                 * but i think this is safer rather than processing an invalid command
-                 * causing unwanted behavior.
-                 */
-
-                if($should_return_all){
-                    return [];
-                }else {
-                    return [
-                        'keyword' => $command[0],
-                        'id' => $command[1],
-                        'total' => $command[2],
-                    ];
-                }
-            });
-
-        /** if order has a order */
-        if ($customer) {
-            $customer_metafields = ShopifyAdmin::fetchMetafield($customer['id'], ShopifyConstants::CUSTOMER_RESOURCE);
-            $customer_member_id = $customer_metafields->ZAPMemberId();
-
-            /**
-             *  if the customer is a zap memberm and
-             *  the order doesnt not have a zap_member_order tag
-             * */
-
-            if (($customer_member_id !== 'N/A' || !empty($customer_member_id))
-                && !$tags->contains('ZAP_MEMBER_ORDER')) {
-                    $tags->push('ZAP_MEMBER_ORDER');
-                    ShopifyAdmin::addTagsToOrder($order_id, $tags->implode(','));
-            }
-        }
-
-        if ($is_cancelled) {
-            abort(200);
-        } else {
-            $order_metafields = ShopifyAdmin::fetchMetafield($order_id, ShopifyConstants::ORDER_RESOURCE);
-
-            $points_earned_metafield = $order_metafields->getPointsEarnedMetafieldId();
-            $points_earned = $order_metafields->getPointsEarnedMetafield();
-
-            $line_item_points_metafield = $order_metafields->getLineItemPointsMetafieldId();
-            $line_item_points = $order_metafields->getLineItemPointsMetafield();
-            $line_item_points_original_count = count($line_item_points);
-
-            /**
-             * if the order is not cancelled and has a points_to_earn metafield
-             * recalculate the points to be earn
-             */
-            if ($points_earned_metafield) {
-                $fulfilled_line_items = collect([]);
-
-                collect($body['fulfillments'])
-                    ->filter(fn (array $fulfillment) => $fulfillment['status'] === 'success')
-                    ->each(function (array $fulfillment) use ($returned_items, $should_return_all, &$fulfilled_line_items) {
-                        collect($fulfillment['line_items'])
-                            /** collect line items that will be calculated */
-                            ->each(function (array $line_item) use ($returned_items, $should_return_all, &$fulfilled_line_items) {
-                                $line_item['original_quantity'] = $line_item['quantity'];
-                                $variant_id = $line_item['variant_id'];
-
-                                if ($should_return_all) {
-                                    $line_item['quantity'] = 0;
-                                } else {
-                                    $returned = $returned_items
-                                        ->filter(fn ($returned_item) => $returned_item['id'] == $variant_id)
-                                        ->first();
-                                    if ($returned) {
-                                        $line_item['quantity'] = max($line_item['quantity'] - $returned['total'], 0);
-                                    }
-                                }
-
-                                $fulfilled_line_items->push($line_item);
-                            });
-                    });
-
-                $total_points_collection = $fulfilled_line_items->map(function (array $item) use (&$line_item_points) {
-                    $result = ShopPromo::calculatePointsToEarn($item, $line_item_points);
-                    if (! array_key_exists($result['id'], $line_item_points) ) {
-                        $line_item_points[$result['id']] = [
-                            "id" => $result['id'],
-                            "variant_id" => $item['variant_id'],
-                            "reward_type" => $result['reward_type'],
-                            "original_quantity" => $item['original_quantity'],
-                            "calculated_quantity" => $item["quantity"],
-                            "reward_amount" => $result['reward_amount'],
-                            "points_to_earn" => $result['points_to_earn'],
-                        ];
-                    }
-
-                    return $result;
+        try {
+            $tags_trimmed = $tags
+                ->map(function ($tag) use (&$should_return_all) {
+                    return trim($tag);
                 });
 
-                $line_item_points_new_count = count($line_item_points);
+            $returned_items = $tags_trimmed
+                ->filter(fn ($tag) => Str::contains($tag, 'RETURN'))
+                ->map(function ($tag) use (&$should_return_all) {
+                    $command = explode(" ", $tag);
 
-                $total_points_to_earn = $total_points_collection->sum('points_to_credit');
-                $total_subtotal_amount = $total_points_collection->sum('subtotal_amount');
-                $line_item_points_collection = collect($line_item_points);
-
-                $total_points_to_earn = round($total_points_to_earn, 2);
-
-                // dd($total_points_to_earn);
-
-                if ($total_points_to_earn != $points_earned) {
-
-                    if ($points_earned > 0) {
-                        $this->customerDeductZAPPoints($body, $points_earned);
+                    /**
+                     * return all items
+                     */
+                    if ($command[1] == 'ALL') {
+                        $should_return_all = true;
                     }
 
-                    if (floatval($total_subtotal_amount) >= ShopifyConstants::MINIMUM_SUBTOTAL_TO_EARN
-                        && $total_points_to_earn > 0
-                     ) {
-                        $this->customerRewardPoints($body, $total_points_to_earn);
+                    /**
+                     * it is possible that this approach will throw an undefined index
+                     * but i think this is safer rather than processing an invalid command
+                     * causing unwanted behavior.
+                     */
+
+                    if ($should_return_all) {
+                        return [];
+                    } else {
+                        return [
+                            'keyword' => $command[0],
+                            'id' => $command[1],
+                            'total' => $command[2],
+                        ];
                     }
+                });
 
-                    ShopifyAdmin::updateMetafieldById($points_earned_metafield, $total_points_to_earn);
-                }
+            /** if order has a order */
+            if ($customer) {
+                $customer_metafields = ShopifyAdmin::fetchMetafield($customer['id'], ShopifyConstants::CUSTOMER_RESOURCE);
+                $customer_member_id = $customer_metafields->ZAPMemberId();
 
-                if ($line_item_points_new_count > $line_item_points_original_count) {
-                    ShopifyAdmin::updateMetafieldById($line_item_points_metafield, $line_item_points_collection->toJson());
+                /**
+                 *  if the customer is a zap memberm and
+                 *  the order doesnt not have a zap_member_order tag
+                 * */
+
+                if (($customer_member_id !== 'N/A' || !empty($customer_member_id))
+                    && !$tags->contains('ZAP_MEMBER_ORDER')
+                ) {
+                    $tags->push('ZAP_MEMBER_ORDER');
+                    ShopifyAdmin::addTagsToOrder($order_id, $tags->implode(','));
                 }
             }
 
+            if ($is_cancelled) {
+                abort(200);
+            } else {
+                $order_metafields = ShopifyAdmin::fetchMetafield($order_id, ShopifyConstants::ORDER_RESOURCE);
+
+                $points_earned_metafield = $order_metafields->getPointsEarnedMetafieldId();
+                $points_earned = $order_metafields->getPointsEarnedMetafield();
+
+                $line_item_points_metafield = $order_metafields->getLineItemPointsMetafieldId();
+                $line_item_points = $order_metafields->getLineItemPointsMetafield();
+                $line_item_points_original_count = count($line_item_points);
+
+                /**
+                 * if the order is not cancelled and has a points_to_earn metafield
+                 * recalculate the points to be earn
+                 */
+                if ($points_earned_metafield) {
+                    $fulfilled_line_items = collect([]);
+
+                    collect($body['fulfillments'])
+                        ->filter(fn (array $fulfillment) => $fulfillment['status'] === 'success')
+                        ->each(function (array $fulfillment) use ($returned_items, $should_return_all, &$fulfilled_line_items) {
+                            collect($fulfillment['line_items'])
+                                /** collect line items that will be calculated */
+                                ->each(function (array $line_item) use ($returned_items, $should_return_all, &$fulfilled_line_items) {
+                                    $line_item['original_quantity'] = $line_item['quantity'];
+                                    $variant_id = $line_item['variant_id'];
+
+                                    if ($should_return_all) {
+                                        $line_item['quantity'] = 0;
+                                    } else {
+                                        $returned = $returned_items
+                                            ->filter(fn ($returned_item) => $returned_item['id'] == $variant_id)
+                                            ->first();
+                                        if ($returned) {
+                                            $line_item['quantity'] = max($line_item['quantity'] - $returned['total'], 0);
+                                        }
+                                    }
+
+                                    $fulfilled_line_items->push($line_item);
+                                });
+                        });
+
+                    $total_points_collection = $fulfilled_line_items->map(function (array $item) use (&$line_item_points) {
+                        $result = ShopPromo::calculatePointsToEarn($item, $line_item_points);
+                        if (!array_key_exists($result['id'], $line_item_points)) {
+                            $line_item_points[$result['id']] = [
+                                "id" => $result['id'],
+                                "variant_id" => $item['variant_id'],
+                                "reward_type" => $result['reward_type'],
+                                "original_quantity" => $item['original_quantity'],
+                                "calculated_quantity" => $item["quantity"],
+                                "reward_amount" => $result['reward_amount'],
+                                "points_to_earn" => $result['points_to_earn'],
+                            ];
+                        }
+
+                        return $result;
+                    });
+
+                    $line_item_points_new_count = count($line_item_points);
+
+                    $total_points_to_earn = $total_points_collection->sum('points_to_credit');
+                    $total_subtotal_amount = $total_points_collection->sum('subtotal_amount');
+                    $line_item_points_collection = collect($line_item_points);
+
+                    $total_points_to_earn = round($total_points_to_earn, 2);
+
+                    // dd($total_points_to_earn);
+
+                    if ($total_points_to_earn != $points_earned) {
+
+                        if ($points_earned > 0) {
+                            $this->customerDeductZAPPoints($body, $points_earned);
+                        }
+
+                        if (
+                            floatval($total_subtotal_amount) >= ShopifyConstants::MINIMUM_SUBTOTAL_TO_EARN
+                            && $total_points_to_earn > 0
+                        ) {
+                            $this->customerRewardPoints($body, $total_points_to_earn);
+                        }
+
+                        ShopifyAdmin::updateMetafieldById($points_earned_metafield, $total_points_to_earn);
+                    }
+
+                    if ($line_item_points_new_count > $line_item_points_original_count) {
+                        ShopifyAdmin::updateMetafieldById($line_item_points_metafield, $line_item_points_collection->toJson());
+                    }
+                }
+
+                return response()->json(['success' => true], Response::HTTP_OK);
+            }
+        } catch (\Throwable $th) {
+            Log::critical($th->getMessage(), [
+                'trace' => $th->getTraceAsString(),
+                'file' => $th->getFile(),
+                'line' => $th->getLine(),
+            ]);
             return response()->json(['success' => true], Response::HTTP_OK);
         }
     }
@@ -305,7 +316,7 @@ class WebhookController extends Controller
             $customer_metafields = ShopifyAdmin::fetchMetafield($customer_id, ShopifyConstants::CUSTOMER_RESOURCE);
             $customer_member_id = $customer_metafields->ZAPMemberId(ShopifyConstants::METAFIELD_INDEX_VALUE);
             $zap_discount = collect($dicount_codes)
-                ->filter( fn ($discount) => $discount['code'] === ZAPConstants::DISCOUNT_PREFIX . $customer_id)
+                ->filter(fn ($discount) => $discount['code'] === ZAPConstants::DISCOUNT_PREFIX . $customer_id)
                 ->first();
 
             // if customer has a member id from ZAP, this means we should do the next process
@@ -350,7 +361,6 @@ class WebhookController extends Controller
                             $transactions_metafield_id,
                             $transactions
                         );
-
                     } else {
                         Log::critical("failed to add used points of cancelled order #{$order_id}", [
                             'discount_code' => $zap_discount['code'],
@@ -454,9 +464,9 @@ class WebhookController extends Controller
 
         // If transaction list is not empty, decode else create a an empty collection
         if ($order_transaction_list) {
-           $transactions_metafield_id = $order_transaction_list[ShopifyConstants::METAFIELD_INDEX_ID];
-           $transactions = collect(json_decode($order_transaction_list[ShopifyConstants::METAFIELD_INDEX_VALUE], true));
-       }
+            $transactions_metafield_id = $order_transaction_list[ShopifyConstants::METAFIELD_INDEX_ID];
+            $transactions = collect(json_decode($order_transaction_list[ShopifyConstants::METAFIELD_INDEX_VALUE], true));
+        }
 
         if ($add_points_request->ok()) {
             $add_points_response = $add_points_request->collect();
@@ -479,7 +489,6 @@ class WebhookController extends Controller
                 $transactions_metafield_id,
                 $transactions
             );
-
         } else {
             Log::critical("failed to add used points of cancelled order #{$order_id}", [
                 'amount' => $amount,
@@ -499,8 +508,8 @@ class WebhookController extends Controller
         $transactions_metafield_id = null;
         $order_transaction_list = $order_metafields->ZAPTransactions();
 
-         // If transaction list is not empty, decode else create a an empty collection
-         if ($order_transaction_list) {
+        // If transaction list is not empty, decode else create a an empty collection
+        if ($order_transaction_list) {
             $transactions_metafield_id = $order_transaction_list[ShopifyConstants::METAFIELD_INDEX_ID];
             $transactions = collect(json_decode($order_transaction_list[ShopifyConstants::METAFIELD_INDEX_VALUE], true));
         }

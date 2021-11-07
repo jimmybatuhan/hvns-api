@@ -176,4 +176,47 @@ class DiscountController extends Controller
         //change if they want a different naming convention for the disount code
         return ZAPConstants::DISCOUNT_PREFIX . $customer_id;
     }
+
+    public function registerClaim500(Request $request){
+        $response = [
+            'success' => 'false',
+            'message' => ""
+        ];
+
+        $validator = Validator::make($request->all(), [
+            'mobile' => 'required|bail',
+            'shopify_customer_id' => 'required|bail',
+        ]);
+
+        // TODO validate if the mobile no. exists in ZAP
+        if (! $validator->fails()) {
+            // generate discount code name
+            $shopify_customer_id = $request->shopify_customer_id;
+            $shopify_customer_resp = ShopifyAdmin::getCustomerById($shopify_customer_id);
+            $shopify_customer_data = $shopify_customer_resp->collect();
+            $customer_tags = $shopify_customer_data['customer']['tags'];
+
+            if (strpos($customer_tags, ShopifyConstants::ELIGIBLE_500_TAG) === false) {
+                
+                $zap_response = ZAP::inquireBalance($request->mobile);
+                $customer_balance = $zap_response->collect();
+                $available_customer_points = $customer_balance['data']['currencies'][0]['validPoints'];
+
+                if ($available_customer_points >= ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED) {
+
+                    ZAP::deductPoints(ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED, $request->mobile);
+                    ShopifyAdmin::addTagsToCustomer($shopify_customer_id, ShopifyConstants::ELIGIBLE_500_TAG);
+                    $response['success'] = true;
+
+                } else {
+                    $response['message'] = "Insufficient Balance";
+                }
+
+            } else {
+                $response['message'] = "User is already Claim 500 Eligible";
+            }
+        }
+
+        return response()->json($response);
+    }
 }

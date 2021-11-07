@@ -34,6 +34,7 @@ Route::middleware(['log-route', 'cors'])->group(function () {
 
     Route::post('discount-code', [DiscountController::class, 'generateDiscountCode']);
     Route::post('discount-points', [DiscountController::class, 'getDiscountPoints']);
+    Route::post('register-claim-500', [DiscountController::class, 'registerClaim500']);
 });
 
 Route::prefix('shopify')->middleware(['shopify-verify-webhook', 'log-route'])->group(function () {

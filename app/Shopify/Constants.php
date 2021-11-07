@@ -19,4 +19,7 @@ class Constants
 
     public const METAFIELD_VALUE_TYPE_STRING = 'string';
     public const METAFIELD_VALUE_TYPE_JSON_STRING = 'json_string';
+
+    public const ELIGIBLE_500_TAG = "eligible-500";
+    public const ELIGIBLE_500_POINTS_NEEDED = 500;
 }

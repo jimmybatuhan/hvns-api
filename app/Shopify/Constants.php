@@ -22,4 +22,6 @@ class Constants
 
     public const ELIGIBLE_500_TAG = "eligible-500";
     public const ELIGIBLE_500_POINTS_NEEDED = 500;
+
+    public const LESS_500 = "LESS_500";
 }

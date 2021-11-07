@@ -23,7 +23,8 @@ class DiscountController extends Controller
         ]);
 
         // TODO validate if the mobile no. exists in ZAP
-        if (! $validator->fails()) {
+        if (!$validator->fails()) {
+
             // generate discount code name
             $shopify_customer_id = $request->shopify_customer_id;
             $discount_code = $this->generateNameForDiscountCode($shopify_customer_id);
@@ -32,7 +33,7 @@ class DiscountController extends Controller
             $zap_response = ZAP::inquireBalance($request->mobile);
             $customer_balance = $zap_response->collect();
 
-            if (! $zap_response->failed()) {
+            if (!$zap_response->failed()) {
                 //TODO: Change this to for loop to get the correct currency if they have multiples
                 $available_customer_points = $customer_balance['data']['currencies'][0]['validPoints'];
 
@@ -43,8 +44,35 @@ class DiscountController extends Controller
 
                 if ($request->points_to_use > $available_customer_points || $request->points_to_use < 0) {
                     $customer_current_points = strval($available_customer_points * -1);
-                }else {
+                } else {
                     $customer_current_points = strval($request->points_to_use * -1);
+                }
+
+                $customer_detail = ShopifyAdmin::getCustomerById($shopify_customer_id)->collect();
+                $customer_tags = explode(",", $customer_detail["tags"]);
+                $total_discount_from_less_500 = 0;
+
+                /** if customer is registered for the 500 discounted items */
+                if (in_array(ShopifyConstants::ELIGIBLE_500_TAG, $customer_tags)) {
+                    /** if user purchase items that has less 500, calculate items that has tags for less 500 */
+                    if ($request->has("items") && !empty($request->items)) {
+                        $cart_items = collect($request->items);
+                        $cart_items->each(function (array $product) use (&$total_discount_from_less_500) {
+                            $item_detail_response = ShopifyAdmin::getProductById($product["id"])->collect();
+                            $item_detail = $item_detail_response["product"];
+                            $item_tags = explode(",", $item_detail["tags"]);
+
+                            if (in_array(ShopifyConstants::LESS_500, $item_tags)) {
+                                $total_discount_from_less_500 += ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED * $product["quantity"];
+                            }
+                        });
+
+                        /**
+                         * IMPORTANT!!!, the amount of $total_discount_from_less_500 will be deducted to the current customer ZAP Points
+                         * when the order is completed. needed to confirm if this is fine.
+                         */
+                        $customer_current_points = $customer_current_points + ($total_discount_from_less_500 * -1);
+                    }
                 }
 
                 $shopify_response = ShopifyAdmin::getDiscountCode($discount_code);
@@ -57,7 +85,7 @@ class DiscountController extends Controller
                     $price_rule_response = ShopifyAdmin::getPriceRule($discount_price_rule_id);
                     $price_rule = $price_rule_response->collect();
 
-                    if (! $price_rule_response->failed()) {
+                    if (!$price_rule_response->failed()) {
                         // if points and the amount is not the same
                         $price_rule_amount = $price_rule['price_rule']['value'];
                         if ($customer_current_points !== $price_rule_amount) {
@@ -67,7 +95,7 @@ class DiscountController extends Controller
                                 $customer_current_points
                             );
 
-                            if (! $price_rule_update_response->failed()) {
+                            if (!$price_rule_update_response->failed()) {
                                 $response = [
                                     'success' => true,
                                     'discount_code' => $discount_code,
@@ -85,7 +113,6 @@ class DiscountController extends Controller
                             'message' => 'failed to get the price rule',
                         ];
                     }
-
                 } else if ($shopify_response->status() === Response::HTTP_NOT_FOUND) {
                     // create a new price rule
                     $price_rule_response = ShopifyAdmin::createPriceRule(
@@ -95,12 +122,12 @@ class DiscountController extends Controller
                     );
                     $new_price_rule = $price_rule_response->collect();
 
-                    if (! $price_rule_response->failed()) {
+                    if (!$price_rule_response->failed()) {
                         $new_discount_code_response = ShopifyAdmin::createDiscountCode(
                             $new_price_rule['price_rule']['id'],
                             $discount_code
                         );
-                        if (! $new_discount_code_response->failed()) {
+                        if (!$new_discount_code_response->failed()) {
                             $response = [
                                 'success' => true,
                                 'discount_code' => $discount_code,
@@ -144,11 +171,11 @@ class DiscountController extends Controller
         ]);
 
         // TODO validate if the mobile no. exists in ZAP
-        if (! $validator->fails()) {
+        if (!$validator->fails()) {
             $zap_response = ZAP::inquireBalance($request->mobile);
             $customer_balance = $zap_response->collect();
 
-            if (! $zap_response->failed()) {
+            if (!$zap_response->failed()) {
                 //TODO: Change this to for loop to get the correct currency if they have multiples
                 $customer_current_points = $customer_balance['data']['currencies'][0]['validPoints'];
                 $customer_pending_points = $customer_balance['data']['currencies'][0]['pendingPoints'];
@@ -158,7 +185,6 @@ class DiscountController extends Controller
                     'available_points' => $customer_current_points,
                     'pending_points' => $customer_pending_points,
                 ];
-
             } else {
                 // TODO log the error
                 $response = [
@@ -177,7 +203,8 @@ class DiscountController extends Controller
         return ZAPConstants::DISCOUNT_PREFIX . $customer_id;
     }
 
-    public function registerClaim500(Request $request){
+    public function registerClaim500(Request $request)
+    {
         $response = [
             'success' => 'false',
             'message' => ""
@@ -189,7 +216,7 @@ class DiscountController extends Controller
         ]);
 
         // TODO validate if the mobile no. exists in ZAP
-        if (! $validator->fails()) {
+        if (!$validator->fails()) {
             // generate discount code name
             $shopify_customer_id = $request->shopify_customer_id;
             $shopify_customer_resp = ShopifyAdmin::getCustomerById($shopify_customer_id);
@@ -197,7 +224,7 @@ class DiscountController extends Controller
             $customer_tags = $shopify_customer_data['customer']['tags'];
 
             if (strpos($customer_tags, ShopifyConstants::ELIGIBLE_500_TAG) === false) {
-                
+
                 $zap_response = ZAP::inquireBalance($request->mobile);
                 $customer_balance = $zap_response->collect();
                 $available_customer_points = $customer_balance['data']['currencies'][0]['validPoints'];
@@ -207,11 +234,9 @@ class DiscountController extends Controller
                     ZAP::deductPoints(ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED, $request->mobile);
                     ShopifyAdmin::addTagsToCustomer($shopify_customer_id, ShopifyConstants::ELIGIBLE_500_TAG);
                     $response['success'] = true;
-
                 } else {
                     $response['message'] = "Insufficient Balance";
                 }
-
             } else {
                 $response['message'] = "User is already Claim 500 Eligible";
             }

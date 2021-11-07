@@ -230,4 +230,9 @@ class ShopifyAdmin
 
         return $this->http->get($this->admin_api . "/customers/{$customer_id}/orders.json?{$query}");
     }
+
+    public function getProductById(string $product_id): Response
+    {
+        return $this->http->get($this->admin_api, "/products/{$product_id}.json");
+    }
 }

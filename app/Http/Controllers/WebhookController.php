@@ -37,6 +37,14 @@ class WebhookController extends Controller
             $zap_discount = collect($body['discount_codes'])
                 ->filter(fn ($discount) => $discount['code'] === ZAPConstants::DISCOUNT_PREFIX . $customer_id)
                 ->first();
+            $claim_500_discount = collect($body['discount_codes'])
+                ->filter(fn ($discount) => str_contains($discount["code"], ShopifyConstants::LESS_500_DISCOUNT_CODE . "_" . $customer_id))
+                ->first();
+
+            $claim_500_discount_quantity = array_pop(explode("_", $claim_500_discount["code"]));
+            $total_claim_500_discount = $claim_500_discount_quantity * ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED;
+
+            $order_line_items = $body["line_items"];
 
             // if customer has a member id from ZAP, this means we should add a point in its account
             // else ignore the event.
@@ -57,7 +65,8 @@ class WebhookController extends Controller
 
                 // if the customer used their zap points as a discount
                 if ($zap_discount) {
-                    $points_used = $zap_discount['amount'];
+                    $points_used = $total_claim_500_discount ? $total_claim_500_discount : $zap_discount['amount'];
+
                     $use_points_response = ZAP::deductPoints($points_used, $mobile);
 
                     if ($use_points_response->ok()) {

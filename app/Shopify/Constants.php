@@ -24,4 +24,6 @@ class Constants
     public const ELIGIBLE_500_POINTS_NEEDED = 500;
 
     public const LESS_500 = "LESS_500";
+
+    public const LESS_500_DISCOUNT_CODE = "CLAIM_500";
 }

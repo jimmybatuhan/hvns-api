@@ -6,6 +6,7 @@ use App\Shopify\Facades\ShopifyAdmin;
 use App\Shopify\Constants as ShopifyConstants;
 use App\ZAP\Constants as ZAPConstants;
 use App\ZAP\Facades\ZAP;
+use Google\Service\ShoppingContent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -28,7 +29,7 @@ class DiscountController extends Controller
             // generate discount code name
             $shopify_customer_id = $request->shopify_customer_id;
             $discount_code = $this->generateNameForDiscountCode($shopify_customer_id);
-            $discount_name = ZAPConstants::DISCOUNT_PREFIX . $shopify_customer_id;
+            $discount_name = $discount_code;
             // get customer balance (points)
             $zap_response = ZAP::inquireBalance($request->mobile);
             $customer_balance = $zap_response->collect();
@@ -50,29 +51,34 @@ class DiscountController extends Controller
 
                 $customer_detail = ShopifyAdmin::getCustomerById($shopify_customer_id)->collect();
                 $customer_tags = explode(",", $customer_detail["tags"]);
-                $total_discount_from_less_500 = 0;
+                $total_discount_from_claim_500_promo = 0;
+                $total_quantity_of_items_from_claim_500 = 0;
 
                 /** if customer is registered for the 500 discounted items */
                 if (in_array(ShopifyConstants::ELIGIBLE_500_TAG, $customer_tags)) {
                     /** if user purchase items that has less 500, calculate items that has tags for less 500 */
                     if ($request->has("items") && !empty($request->items)) {
                         $cart_items = collect($request->items);
-                        $cart_items->each(function (array $product) use (&$total_discount_from_less_500) {
+                        $cart_items->each(function (array $product) use (&$total_quantity_of_items_from_claim_500, &$total_discount_from_claim_500_promo) {
                             $item_detail_response = ShopifyAdmin::getProductById($product["id"])->collect();
                             $item_detail = $item_detail_response["product"];
                             $item_tags = explode(",", $item_detail["tags"]);
 
                             if (in_array(ShopifyConstants::LESS_500, $item_tags)) {
-                                $total_discount_from_less_500 += ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED * $product["quantity"];
+                                $total_discount_from_claim_500_promo += $product["final_price"] * $product["quantity"];
+                                $total_quantity_of_items_from_claim_500++;
                             }
                         });
 
-                        /**
-                         * IMPORTANT!!!, the amount of $total_discount_from_less_500 will be deducted to the current customer ZAP Points
-                         * when the order is completed. needed to confirm if this is fine.
-                         */
-                        $customer_current_points = $customer_current_points + ($total_discount_from_less_500 * -1);
+                        $customer_current_points = $total_discount_from_claim_500_promo * -1;
                     }
+                }
+
+                if ($total_quantity_of_items_from_claim_500 > 0) {
+                    $discount_name = $this->generateNameForDiscountClaim500Code(
+                        $shopify_customer_id,
+                        $total_quantity_of_items_from_claim_500
+                    );
                 }
 
                 $shopify_response = ShopifyAdmin::getDiscountCode($discount_code);
@@ -195,6 +201,12 @@ class DiscountController extends Controller
         }
 
         return response()->json($response);
+    }
+
+    private function generateNameForDiscountClaim500Code(string $customer_id, int $quantity): String
+    {
+        //change if they want a different naming convention for the disount code
+        return ShopifyConstants::LESS_500_DISCOUNT_CODE . "_" . $customer_id . "_" . $quantity;
     }
 
     private function generateNameForDiscountCode(string $customer_id): String

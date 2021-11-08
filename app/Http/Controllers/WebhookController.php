@@ -17,7 +17,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
-
 class WebhookController extends Controller
 {
     public function onOrderCreate(Request $request): JsonResponse
@@ -43,8 +42,6 @@ class WebhookController extends Controller
 
             $claim_500_discount_quantity = array_pop(explode("_", $claim_500_discount["code"]));
             $total_claim_500_discount = $claim_500_discount_quantity * ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED;
-
-            $order_line_items = $body["line_items"];
 
             // if customer has a member id from ZAP, this means we should add a point in its account
             // else ignore the event.

@@ -235,4 +235,9 @@ class ShopifyAdmin
     {
         return $this->http->get($this->admin_api, "/products/{$product_id}.json");
     }
+
+    public function getCollectionProducts(string $collection_id): Response
+    {
+        return $this->http->get($this->admin_api, "/collections/{$collection_id}/products.json");
+    }
 }

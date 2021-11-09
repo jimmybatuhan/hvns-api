@@ -33,15 +33,6 @@ class WebhookController extends Controller
             $order_metafields = ShopifyAdmin::fetchMetafield($order_id, ShopifyConstants::ORDER_RESOURCE);
             $customer_metafields = ShopifyAdmin::fetchMetafield($customer_id, ShopifyConstants::CUSTOMER_RESOURCE);
             $customer_member_id = $customer_metafields->ZAPMemberId(ShopifyConstants::METAFIELD_INDEX_VALUE);
-            $zap_discount = collect($body['discount_codes'])
-                ->filter(fn ($discount) => $discount['code'] === ZAPConstants::DISCOUNT_PREFIX . $customer_id)
-                ->first();
-            $claim_500_discount = collect($body['discount_codes'])
-                ->filter(fn ($discount) => str_contains($discount["code"], ShopifyConstants::LESS_500_DISCOUNT_CODE . "_" . $customer_id))
-                ->first();
-
-            $claim_500_discount_quantity = array_pop(explode("_", $claim_500_discount["code"]));
-            $total_claim_500_discount = $claim_500_discount_quantity * ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED;
 
             // if customer has a member id from ZAP, this means we should add a point in its account
             // else ignore the event.
@@ -60,9 +51,21 @@ class WebhookController extends Controller
                     $transactions = collect(json_decode($order_transaction_list[ShopifyConstants::METAFIELD_INDEX_VALUE], true));
                 }
 
+                $zap_discount = collect($body['discount_codes'])
+                    ->filter( function ($discount) use ($customer_id) {
+                        $code = explode("-", $discount["code"]);
+                        $promo_type = $code[0] ?? null;
+                        $customer = $code[1] ?? null;
+                        return $customer_id === $customer
+                            && (ShopifyConstants::USE_500_POINTS_PER_ITEM === $promo_type
+                            || ShopifyConstants::USE_POINTS_PREFIX === $promo_type);
+                    })
+                    ->first();
+
                 // if the customer used their zap points as a discount
                 if ($zap_discount) {
-                    $points_used = $total_claim_500_discount ? $total_claim_500_discount : $zap_discount['amount'];
+                    $code = explode("-", $zap_discount["code"]);
+                    $points_used = $code[2] ?? 0;
 
                     $use_points_response = ZAP::deductPoints($points_used, $mobile);
 
@@ -268,8 +271,6 @@ class WebhookController extends Controller
                     $line_item_points_collection = collect($line_item_points);
 
                     $total_points_to_earn = round($total_points_to_earn, 2);
-
-                    // dd($total_points_to_earn);
 
                     if ($total_points_to_earn != $points_earned) {
 

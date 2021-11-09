@@ -26,4 +26,7 @@ class Constants
     public const LESS_500 = "LESS_500";
 
     public const LESS_500_DISCOUNT_CODE = "CLAIM_500";
+
+    public const USE_POINTS_PREFIX = "USP";
+    public const USE_500_POINTS_PER_ITEM = "CLM";
 }

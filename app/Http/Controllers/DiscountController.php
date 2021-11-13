@@ -13,7 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class DiscountController extends Controller
 {
-    public function generateDiscountCode(GenerateDiscountCodeRequest $request): JsonResponse
+    public function generateDiscountCode(Request $request): JsonResponse
     {
         $zap_response = ZAP::inquireBalance($request->mobile);
         $shopify_customer_id = $request->shopify_customer_id;

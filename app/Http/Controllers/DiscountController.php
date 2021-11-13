@@ -46,6 +46,7 @@ class DiscountController extends Controller
             }
 
             $collection_products = $collection_response->collect();
+
             $collection_products = collect($collection_products["products"]);
             $collection_products = $collection_products->map(fn ($product) => $product["id"]);
             $cart_items = collect($request->items);

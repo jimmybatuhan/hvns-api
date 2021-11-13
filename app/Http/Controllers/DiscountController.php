@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\Auth\GenerateDiscountCodeRequest;
+use App\Http\Requests\GenerateDiscountCodeRequest;
 use App\Shopify\Facades\ShopifyAdmin;
 use App\Shopify\Constants as ShopifyConstants;
 use App\ZAP\Facades\ZAP;

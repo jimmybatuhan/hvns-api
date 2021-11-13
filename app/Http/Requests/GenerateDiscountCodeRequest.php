@@ -1,8 +1,7 @@
 <?php
 
-namespace App\Http\Requests\Auth;
+namespace App\Http\Requests;
 
-use App\Shopify\Facades\ShopifyAdmin;
 use Illuminate\Foundation\Http\FormRequest;
 use App\Shopify\Constants as ShopifyConstants;
 

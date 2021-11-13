@@ -172,8 +172,8 @@ class DiscountController extends Controller
 
             if (!$zap_response->failed()) {
                 //TODO: Change this to for loop to get the correct currency if they have multiples
-                $customer_current_points = $customer_balance['data']['currencies'][0]['validPoints'];
-                $customer_pending_points = $customer_balance['data']['currencies'][0]['pendingPoints'];
+                $customer_current_points = $customer_balance['data']['currencies'][0]['validPoints'] ?? 0;
+                $customer_pending_points = $customer_balance['data']['currencies'][0]['pendingPoints'] ?? 0;
 
                 $response = [
                     'success' => true,

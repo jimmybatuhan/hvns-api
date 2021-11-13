@@ -49,7 +49,7 @@ class DiscountController extends Controller
 
             $collection_products = collect($collection_products["products"]);
             $collection_products = $collection_products->map(fn ($product) => $product["id"]);
-            $cart_items = collect(json_code($request->items));
+            $cart_items = collect(json_decode($request->items));
 
             $cart_items->each(function (array $product) use (&$total_discount, &$total_points_used, $collection_products) {
                 /** check item if eligible for claim 500 */

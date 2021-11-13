@@ -50,11 +50,7 @@ class DiscountController extends Controller
             $collection_products = $collection_products->map(fn ($product) => $product["id"]);
             $cart_items = collect($request->items);
 
-            $cart_items->each(function (array $product) use (
-                &$total_discount,
-                &$total_points_used,
-                $collection_products
-            ) {
+            $cart_items->each(function (array $product) use (&$total_discount, &$total_points_used, $collection_products) {
                 /** check item if eligible for claim 500 */
                 if (in_array($product["id"], $collection_products->toArray())) {
                     $total_discount += $product["final_price"] * $product["quantity"];
@@ -64,13 +60,13 @@ class DiscountController extends Controller
 
             $discount_name .= "-{$total_points_used}";
         } else {
-
-            if ($request->points_to_use > ShopifyConstants::MAXIMUM_POINTS_TO_USE) {
+            $points_to_use = $request->points_to_use ?? 0;
+            if ($points_to_use > ShopifyConstants::MAXIMUM_POINTS_TO_USE) {
                 $total_discount = ShopifyConstants::MAXIMUM_POINTS_TO_USE;
             } else {
-                $total_discount = ($request->points_to_use > $available_customer_points || $request->points_to_use < 0)
+                $total_discount = ($points_to_use > $available_customer_points || $points_to_use < 0)
                     ? $available_customer_points
-                    : $request->points_to_use;
+                    : $points_to_use;
             }
 
             $total_points_used = $total_discount;

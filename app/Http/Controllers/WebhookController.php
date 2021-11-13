@@ -8,6 +8,7 @@ use App\ShopPromo\Facades\ShopPromo;
 use App\ZAP\Constants as ZAPConstants;
 use App\ZAP\Facades\ZAP;
 use Carbon\Carbon;
+use Exception;
 use Illuminate\Http\Client\Response as ClientResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -52,13 +53,13 @@ class WebhookController extends Controller
                 }
 
                 $zap_discount = collect($body['discount_codes'])
-                    ->filter( function ($discount) use ($customer_id) {
+                    ->filter(function ($discount) use ($customer_id) {
                         $code = explode("-", $discount["code"]);
                         $promo_type = $code[0] ?? null;
                         $customer = $code[1] ?? null;
                         return $customer_id === $customer
                             && (ShopifyConstants::USE_500_POINTS_PER_ITEM === $promo_type
-                            || ShopifyConstants::USE_POINTS_PREFIX === $promo_type);
+                                || ShopifyConstants::USE_POINTS_PREFIX === $promo_type);
                     })
                     ->first();
 
@@ -152,10 +153,9 @@ class WebhookController extends Controller
         /** get returned items if theres any */
 
         try {
-            $tags_trimmed = $tags
-                ->map(function ($tag) use (&$should_return_all) {
-                    return trim($tag);
-                });
+            $tags_trimmed = $tags->map(function ($tag) {
+                return trim($tag);
+            });
 
             $returned_items = $tags_trimmed
                 ->filter(fn ($tag) => Str::contains($tag, 'RETURN'))
@@ -174,7 +174,6 @@ class WebhookController extends Controller
                      * but i think this is safer rather than processing an invalid command
                      * causing unwanted behavior.
                      */
-
                     if ($should_return_all) {
                         return [];
                     } else {
@@ -207,93 +206,102 @@ class WebhookController extends Controller
             if ($is_cancelled) {
                 abort(200);
             } else {
-                $order_metafields = ShopifyAdmin::fetchMetafield($order_id, ShopifyConstants::ORDER_RESOURCE);
+                try {
+                    $order_metafields = ShopifyAdmin::fetchMetafield($order_id, ShopifyConstants::ORDER_RESOURCE);
 
-                $points_earned_metafield = $order_metafields->getPointsEarnedMetafieldId();
-                $points_earned = $order_metafields->getPointsEarnedMetafield();
+                    $points_earned_metafield = $order_metafields->getPointsEarnedMetafieldId();
+                    $points_earned = $order_metafields->getPointsEarnedMetafield();
 
-                $line_item_points_metafield = $order_metafields->getLineItemPointsMetafieldId();
-                $line_item_points = $order_metafields->getLineItemPointsMetafield();
-                $line_item_points_original_count = count($line_item_points);
+                    $line_item_points_metafield = $order_metafields->getLineItemPointsMetafieldId();
+                    $line_item_points = $order_metafields->getLineItemPointsMetafield();
+                    $line_item_points_original_count = count($line_item_points);
 
-                /**
-                 * if the order is not cancelled and has a points_to_earn metafield
-                 * recalculate the points to be earn
-                 */
-                if ($points_earned_metafield) {
-                    $fulfilled_line_items = collect([]);
+                    /**
+                     * if the order is not cancelled and has a points_to_earn metafield
+                     * recalculate the points to be earn
+                     */
+                    if ($points_earned_metafield) {
+                        $fulfilled_line_items = collect([]);
 
-                    collect($body['fulfillments'])
-                        ->filter(fn (array $fulfillment) => $fulfillment['status'] === 'success')
-                        ->each(function (array $fulfillment) use ($returned_items, $should_return_all, &$fulfilled_line_items) {
-                            collect($fulfillment['line_items'])
-                                /** collect line items that will be calculated */
-                                ->each(function (array $line_item) use ($returned_items, $should_return_all, &$fulfilled_line_items) {
-                                    $line_item['original_quantity'] = $line_item['quantity'];
-                                    $variant_id = $line_item['variant_id'];
+                        collect($body['fulfillments'])
+                            ->filter(fn (array $fulfillment) => $fulfillment['status'] === 'success')
+                            ->each(function (array $fulfillment) use ($returned_items, $should_return_all, &$fulfilled_line_items) {
+                                collect($fulfillment['line_items'])
+                                    /** collect line items that will be calculated */
+                                    ->each(function (array $line_item) use ($returned_items, $should_return_all, &$fulfilled_line_items) {
+                                        $line_item['original_quantity'] = $line_item['quantity'];
+                                        $variant_id = $line_item['variant_id'];
 
-                                    if ($should_return_all) {
-                                        $line_item['quantity'] = 0;
-                                    } else {
-                                        $returned = $returned_items
-                                            ->filter(fn ($returned_item) => $returned_item['id'] == $variant_id)
-                                            ->first();
-                                        if ($returned) {
-                                            $line_item['quantity'] = max($line_item['quantity'] - $returned['total'], 0);
+                                        if ($should_return_all) {
+                                            $line_item['quantity'] = 0;
+                                        } else {
+                                            $returned = $returned_items
+                                                ->filter(fn ($returned_item) => $returned_item['id'] == $variant_id)
+                                                ->first();
+                                            if ($returned) {
+                                                $line_item['quantity'] = max($line_item['quantity'] - $returned['total'], 0);
+                                            }
                                         }
-                                    }
 
-                                    $fulfilled_line_items->push($line_item);
-                                });
+                                        $fulfilled_line_items->push($line_item);
+                                    });
+                            });
+
+                        $total_points_collection = $fulfilled_line_items->map(function (array $item) use (&$line_item_points) {
+                            $result = ShopPromo::calculatePointsToEarn($item, $line_item_points);
+                            if (!array_key_exists($result['id'], $line_item_points)) {
+                                $line_item_points[$result['id']] = [
+                                    "id" => $result['id'],
+                                    "variant_id" => $item['variant_id'],
+                                    "reward_type" => $result['reward_type'],
+                                    "original_quantity" => $item['original_quantity'],
+                                    "calculated_quantity" => $item["quantity"],
+                                    "reward_amount" => $result['reward_amount'],
+                                    "points_to_earn" => $result['points_to_earn'],
+                                ];
+                            }
+
+                            return $result;
                         });
 
-                    $total_points_collection = $fulfilled_line_items->map(function (array $item) use (&$line_item_points) {
-                        $result = ShopPromo::calculatePointsToEarn($item, $line_item_points);
-                        if (!array_key_exists($result['id'], $line_item_points)) {
-                            $line_item_points[$result['id']] = [
-                                "id" => $result['id'],
-                                "variant_id" => $item['variant_id'],
-                                "reward_type" => $result['reward_type'],
-                                "original_quantity" => $item['original_quantity'],
-                                "calculated_quantity" => $item["quantity"],
-                                "reward_amount" => $result['reward_amount'],
-                                "points_to_earn" => $result['points_to_earn'],
-                            ];
+                        $line_item_points_new_count = count($line_item_points);
+
+                        $total_points_to_earn = $total_points_collection->sum('points_to_credit');
+                        $total_subtotal_amount = $total_points_collection->sum('subtotal_amount');
+                        $line_item_points_collection = collect($line_item_points);
+
+                        $total_points_to_earn = round($total_points_to_earn, 2);
+
+                        if ($total_points_to_earn != $points_earned) {
+
+                            if ($points_earned > 0) {
+                                $this->customerDeductZAPPoints($body, $points_earned);
+                            }
+
+                            if (
+                                floatval($total_subtotal_amount) >= ShopifyConstants::MINIMUM_SUBTOTAL_TO_EARN
+                                && $total_points_to_earn > 0
+                            ) {
+                                $this->customerRewardPoints($body, $total_points_to_earn);
+                            }
+
+                            ShopifyAdmin::updateMetafieldById($points_earned_metafield, $total_points_to_earn);
                         }
 
-                        return $result;
-                    });
-
-                    $line_item_points_new_count = count($line_item_points);
-
-                    $total_points_to_earn = $total_points_collection->sum('points_to_credit');
-                    $total_subtotal_amount = $total_points_collection->sum('subtotal_amount');
-                    $line_item_points_collection = collect($line_item_points);
-
-                    $total_points_to_earn = round($total_points_to_earn, 2);
-
-                    if ($total_points_to_earn != $points_earned) {
-
-                        if ($points_earned > 0) {
-                            $this->customerDeductZAPPoints($body, $points_earned);
+                        if ($line_item_points_new_count > $line_item_points_original_count) {
+                            ShopifyAdmin::updateMetafieldById($line_item_points_metafield, $line_item_points_collection->toJson());
                         }
-
-                        if (
-                            floatval($total_subtotal_amount) >= ShopifyConstants::MINIMUM_SUBTOTAL_TO_EARN
-                            && $total_points_to_earn > 0
-                        ) {
-                            $this->customerRewardPoints($body, $total_points_to_earn);
-                        }
-
-                        ShopifyAdmin::updateMetafieldById($points_earned_metafield, $total_points_to_earn);
                     }
 
-                    if ($line_item_points_new_count > $line_item_points_original_count) {
-                        ShopifyAdmin::updateMetafieldById($line_item_points_metafield, $line_item_points_collection->toJson());
-                    }
+                    return response()->json(['success' => true], Response::HTTP_OK);
+                } catch (Exception $e) {
+                    Log::critical($e->getMessage(), [
+                        'trace' => $e->getTraceAsString(),
+                        'file' => $e->getFile(),
+                        'line' => $e->getLine(),
+                    ]);
+                    abort(200);
                 }
-
-                return response()->json(['success' => true], Response::HTTP_OK);
             }
         } catch (\Throwable $th) {
             Log::critical($th->getMessage(), [

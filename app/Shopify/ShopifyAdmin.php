@@ -149,7 +149,7 @@ class ShopifyAdmin
         return $this->http->get($this->admin_api . "/orders/{$order_id}.json");
     }
 
-    public function createPriceRule(string $title, string $customer_id, string $amount): Response
+    public function createPriceRule(string $title, string $customer_id, int $amount): Response
     {
         return $this->http->post($this->admin_api . '/price_rules.json', [
             'price_rule' => [

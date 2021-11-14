@@ -73,6 +73,7 @@ class DiscountController extends Controller
             $total_points_used = $total_discount;
             $discount_name .= "-{$total_points_used}";
         }
+        $total_discount = strval($total_discount * -1);
 
         $shopify_response = ShopifyAdmin::getDiscountCode($discount_name);
 
@@ -147,7 +148,6 @@ class DiscountController extends Controller
                 'discount_code' => $discount_name,
             ]);
         } else {
-
             return response()->json([
                 'success' => false,
                 'message' => 'failed to create discount code',

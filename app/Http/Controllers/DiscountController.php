@@ -60,8 +60,6 @@ class DiscountController extends Controller
             });
 
             $discount_name .= "-{$total_points_used}";
-
-            dd($discount_name);
         } else {
             $points_to_use = $request->points_to_use ?? 0;
             if ($points_to_use > ShopifyConstants::MAXIMUM_POINTS_TO_USE) {

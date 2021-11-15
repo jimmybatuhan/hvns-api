@@ -50,15 +50,21 @@ class DiscountController extends Controller
             $collection_products = collect($collection_products["products"]);
             $collection_products = $collection_products->map(fn ($product) => $product["id"]);
             $cart_items = collect($request->items);
-            $total_items_claim = 0;
+            $remaining_item_claims = 5;
 
-            $cart_items->each(function (array $product) use (&$total_discount, &$total_points_used, &$total_items_claim, $collection_products) {
+            $cart_items->each(function (array $product) use (&$total_discount, &$total_points_used, &$remaining_item_claims, $collection_products) {
                 /** check item if eligible for claim 500 */
                 if (in_array($product["product_id"], $collection_products->toArray())) {
-                    if ($total_items_claim < ShopifyConstants::MAX_CLAIMABLE) {
+                    if ($remaining_item_claims > 0) {
+                        
+                        $quantity = $product["quantity"];
+                        if($quantity > $remaining_item_claims){
+                            $quantity = $remaining_item_claims;
+                        }
+
                         $total_discount += ($product["final_price"] / 100) * $product["quantity"];
-                        $total_points_used += $product["quantity"] * ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED;
-                        $total_items_claim += 1;
+                        $total_points_used += $quantity * ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED;
+                        $remaining_item_claims = $remaining_item_claims - $quantity;
                     }
                 }
             });

@@ -54,7 +54,7 @@ class DiscountController extends Controller
             $cart_items->each(function (array $product) use (&$total_discount, &$total_points_used, $collection_products) {
                 /** check item if eligible for claim 500 */
                 if (in_array($product["product_id"], $collection_products->toArray())) {
-                    $total_discount += $product["final_price"] * $product["quantity"];
+                    $total_discount += ($product["final_price"] / 100) * $product["quantity"];
                     $total_points_used += $product["quantity"] * ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED;
                 }
             });

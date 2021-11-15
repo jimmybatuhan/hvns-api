@@ -385,4 +385,8 @@ return [
     */
 
     'config_api_callback' => null,
+
+    'claim_promo_points' => env('CLAIM_PROMO_POINTS', 500),
+    'claim_promo_item_limit' => env('CLAIM_PROMO_ITEM_LIMIT', 5),
+    
 ];

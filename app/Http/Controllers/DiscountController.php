@@ -50,7 +50,7 @@ class DiscountController extends Controller
             $collection_products = collect($collection_products["products"]);
             $collection_products = $collection_products->map(fn ($product) => $product["id"]);
             $cart_items = collect($request->items);
-            $remaining_item_claims = 5;
+            $remaining_item_claims = config('shopify-app.claim_promo_item_limit');
 
             // $elligible_item_count_allowed = $available_customer_points % ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED;
 
@@ -69,7 +69,7 @@ class DiscountController extends Controller
                         }
 
                         $total_discount += ($product["final_price"] / 100) * $quantity;
-                        $total_points_used += $quantity * ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED;
+                        $total_points_used += $quantity * config('shopify-app.claim_promo_points');
                         $remaining_item_claims = $remaining_item_claims - $quantity;
                     }
                 }

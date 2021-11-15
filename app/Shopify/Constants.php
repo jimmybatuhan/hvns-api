@@ -21,7 +21,7 @@ class Constants
     public const METAFIELD_VALUE_TYPE_JSON_STRING = 'json_string';
 
     public const ELIGIBLE_500_TAG = "eligible-500";
-    public const ELIGIBLE_500_POINTS_NEEDED = 500;
+    // public const ELIGIBLE_500_POINTS_NEEDED = 500;
 
     public const LESS_500 = "LESS_500";
 
@@ -30,6 +30,6 @@ class Constants
     public const USE_POINTS_PREFIX = "USP";
     public const USE_500_POINTS_PER_ITEM = "CLM";
 
-    public const MAX_CLAIMABLE = 5;
+    // public const MAX_CLAIMABLE = config('shopify-app.claim_promo_item_limit');
 
 }

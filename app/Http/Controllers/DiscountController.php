@@ -109,12 +109,13 @@ class DiscountController extends Controller
                         'message' => 'failed to update the price rule',
                     ]);
                 }
-
-                return response()->json([
-                    'success' => true,
-                    'discount_code' => $discount_name,
-                ]);
             }
+
+            return response()->json([
+                'success' => true,
+                'discount_code' => $discount_name,
+            ]);
+
         } else if ($shopify_response->status() === Response::HTTP_NOT_FOUND) {
 
             $price_rule_response = ShopifyAdmin::createPriceRule(

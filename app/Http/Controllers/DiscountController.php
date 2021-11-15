@@ -59,6 +59,10 @@ class DiscountController extends Controller
                 }
             });
 
+            if ($total_discount > ShopifyConstants::MAX_CLAIM_500) {
+                $total_discount = ShopifyConstants::MAX_CLAIM_500;
+            }
+
             $discount_name .= "-{$total_points_used}";
         } else {
             $points_to_use = $request->points_to_use ?? 0;

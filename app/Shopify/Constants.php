@@ -29,4 +29,7 @@ class Constants
 
     public const USE_POINTS_PREFIX = "USP";
     public const USE_500_POINTS_PER_ITEM = "CLM";
+
+    public const MAX_CLAIM_500 = 2500;
+
 }

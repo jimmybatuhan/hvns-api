@@ -52,6 +52,12 @@ class DiscountController extends Controller
             $cart_items = collect($request->items);
             $remaining_item_claims = 5;
 
+            $elligible_item_count_allowed = $available_customer_points % ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED;
+
+            if($remaining_item_claims > $elligible_item_count_allowed){
+                $remaining_item_claims = $elligible_item_count_allowed;
+            }
+
             $cart_items->each(function (array $product) use (&$total_discount, &$total_points_used, &$remaining_item_claims, $collection_products) {
                 /** check item if eligible for claim 500 */
                 if (in_array($product["product_id"], $collection_products->toArray())) {

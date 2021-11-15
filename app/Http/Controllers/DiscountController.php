@@ -62,7 +62,7 @@ class DiscountController extends Controller
                             $quantity = $remaining_item_claims;
                         }
 
-                        $total_discount += ($product["final_price"] / 100) * $product["quantity"];
+                        $total_discount += ($product["final_price"] / 100) * $quantity;
                         $total_points_used += $quantity * ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED;
                         $remaining_item_claims = $remaining_item_claims - $quantity;
                     }

@@ -54,14 +54,12 @@ class DiscountController extends Controller
             $cart_items->each(function (array $product) use (&$total_discount, &$total_points_used, $collection_products) {
                 /** check item if eligible for claim 500 */
                 if (in_array($product["product_id"], $collection_products->toArray())) {
-                    $total_discount += ($product["final_price"] / 100) * $product["quantity"];
-                    $total_points_used += $product["quantity"] * ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED;
+                    if ($total_points_used < ShopifyConstants::MAX_CLAIM_500) {
+                        $total_discount += ($product["final_price"] / 100) * $product["quantity"];
+                        $total_points_used += $product["quantity"] * ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED;
+                    }
                 }
             });
-
-            if ($total_discount > ShopifyConstants::MAX_CLAIM_500) {
-                $total_discount = ShopifyConstants::MAX_CLAIM_500;
-            }
 
             $discount_name .= "-{$total_points_used}";
         } else {
@@ -117,7 +115,6 @@ class DiscountController extends Controller
                     'discount_code' => $discount_name,
                 ]);
             }
-
         } else if ($shopify_response->status() === Response::HTTP_NOT_FOUND) {
 
             $price_rule_response = ShopifyAdmin::createPriceRule(

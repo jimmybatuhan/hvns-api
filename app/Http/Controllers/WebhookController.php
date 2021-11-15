@@ -56,7 +56,8 @@ class WebhookController extends Controller
                         $code = explode("-", $discount["code"]);
                         $promo_type = $code[0] ?? null;
                         $customer = $code[1] ?? null;
-                        return $customer_id === $customer
+
+                        return $customer_id == $customer
                             && (ShopifyConstants::USE_500_POINTS_PER_ITEM === $promo_type
                                 || ShopifyConstants::USE_POINTS_PREFIX === $promo_type);
                     })

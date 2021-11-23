@@ -187,6 +187,7 @@ class WebhookController extends Controller
 
             /** if order has a order */
             if ($customer) {
+
                 $customer_metafields = ShopifyAdmin::fetchMetafield($customer['id'], ShopifyConstants::CUSTOMER_RESOURCE);
                 $customer_member_id = $customer_metafields->ZAPMemberId();
 
@@ -271,15 +272,15 @@ class WebhookController extends Controller
 
                     $total_points_to_earn = round($total_points_to_earn, 2);
 
-                    if ($total_points_to_earn != $points_earned) {
+                    if ($total_points_to_earn != floatval($points_earned)) {
 
                         if ($points_earned > 0) {
                             $this->customerDeductZAPPoints($body, $points_earned);
                         }
 
                         if (
-                            floatval($total_subtotal_amount) >= ShopifyConstants::MINIMUM_SUBTOTAL_TO_EARN
-                            && $total_points_to_earn > 0
+                            floatval($total_subtotal_amount) >= ShopifyConstants::MINIMUM_SUBTOTAL_TO_EARN &&
+                            $total_points_to_earn > 0
                         ) {
                             $this->customerRewardPoints($body, $total_points_to_earn);
                         }
@@ -288,11 +289,11 @@ class WebhookController extends Controller
                     }
 
                     if ($line_item_points_new_count > $line_item_points_original_count) {
-                        ShopifyAdmin::updateMetafieldById($line_item_points_metafield, $line_item_points_collection->toJson());
+                     ShopifyAdmin::updateMetafieldById($line_item_points_metafield, $line_item_points_collection->toJson());
                     }
                 }
 
-                return response()->json(['success' => true], Response::HTTP_OK);
+                return response()->json(['success' => true, "err_message" => null], Response::HTTP_OK);
             }
         } catch (\Throwable $th) {
             Log::critical($th->getMessage(), [
@@ -300,7 +301,10 @@ class WebhookController extends Controller
                 'file' => $th->getFile(),
                 'line' => $th->getLine(),
             ]);
-            return response()->json(['success' => true], Response::HTTP_OK);
+            return response()->json([
+                'success' => true,
+                'err_message' => $th->getMessage(),
+            ], Response::HTTP_OK);
         }
     }
 
@@ -462,6 +466,7 @@ class WebhookController extends Controller
         $customer = $payload['customer'];
         $customer_id = $customer['id'];
         $mobile = substr($customer['phone'], 1);
+
         $transactions = collect();
         $add_points_request = ZAP::addPoints($amount, $mobile);
         $order_metafields = ShopifyAdmin::fetchMetafield($order_id, ShopifyConstants::ORDER_RESOURCE);

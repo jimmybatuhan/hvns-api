@@ -35,7 +35,7 @@ class ShopifyAdmin
         string $id,
         Collection $metafields
     ): Response {
-        $response = $this->http->put($this->admin_api . "/{$resource}/{$id}.json", [
+        $payload = [
             Str::singular($resource) => [
                 'id' => $id,
                 'metafields' => $metafields->map(function ($metafield) {
@@ -47,10 +47,12 @@ class ShopifyAdmin
                     return $metafield;
                 })->toArray(),
             ],
-        ]);
+        ];
+        $response = $this->http->put($this->admin_api . "/{$resource}/{$id}.json", $payload);
 
         if ($response->failed()) {
             Log::warning("failed to add metafield in #{$id} at {$resource} resource", [
+                'payload' => $payload,
                 "response" => $response->body(),
                 $metafields->toArray()
             ]);

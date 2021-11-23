@@ -50,7 +50,10 @@ class ShopifyAdmin
         ]);
 
         if ($response->failed()) {
-            Log::warning("failed to add metafield in #{$id} at {$resource} resource", $metafields->toArray());
+            Log::warning("failed to add metafield in #{$id} at {$resource} resource", [
+                "response" => $response->body(),
+                $metafields->toArray()
+            ]);
         }
 
         return $response;

@@ -513,6 +513,9 @@ class WebhookController extends Controller
                 $transactions_metafield_id,
                 $transactions
             );
+
+            Log::critical("adding reward points #{$order_id}");
+
         } else {
             Log::critical("failed to add used points of cancelled order #{$order_id}", [
                 'amount' => $amount,
@@ -562,6 +565,8 @@ class WebhookController extends Controller
                 $transactions_metafield_id,
                 $transactions
             );
+
+            Log::critical("deducting reward points #{$order_id}");
         } else {
             Log::critical("failed to deduct used points of order #{$order_id}", [
                 'amount' => $amount,

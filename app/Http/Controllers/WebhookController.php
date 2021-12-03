@@ -285,8 +285,9 @@ class WebhookController extends Controller
                             $this->customerRewardPoints($body, $total_points_to_earn);
                         }
 
-                        Log::critical("adding points to earn to order #{$order_id}", [
+                        Log::critical("updating points to earn to order #{$order_id}", [
                             'points' => $total_points_to_earn,
+                            'old_points' => floatval($points_earned),
                             'metafield' => $points_earned_metafield,
                         ]);
 
@@ -295,9 +296,10 @@ class WebhookController extends Controller
 
                     if ($line_item_points_new_count > $line_item_points_original_count) {
 
-                        Log::critical("adding line item points to earn to order #{$order_id}", [
+                        Log::critical("updating line item points to earn to order #{$order_id}", [
                             'metafield' => $line_item_points_metafield,
-                            'line_item' => $line_item_points_collection->toJson(),
+                            'new_line_item_count' => $line_item_points_new_count,
+                            'old_line_item_count' => $line_item_points_original_count,
                         ]);
 
                         ShopifyAdmin::updateMetafieldById($line_item_points_metafield, $line_item_points_collection->toJson());

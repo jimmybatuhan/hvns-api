@@ -197,7 +197,7 @@ class WebhookController extends Controller
                  * */
 
                 if (($customer_member_id !== 'N/A' || !empty($customer_member_id))
-                    && !$tags->contains('ZAP_MEMBER_ORDER')
+                    && !$tags_trimmed->contains('ZAP_MEMBER_ORDER') 
                 ) {
 
                     Log::critical("adding tags to order #{$order_id}", [

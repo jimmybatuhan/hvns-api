@@ -99,7 +99,7 @@ class ShopifyAdmin
             // TODO add more 'connectives' in the query
             ->implode(" AND ");
 
-        return $this->http->get($this->customer_search_resource_url, [
+        return $this->http->get($this->admin_api . "/customers/search.json", [
             'query' => $filters,
         ]);
     }

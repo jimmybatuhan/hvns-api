@@ -120,117 +120,136 @@ class CustomerController extends Controller
 
         if (!$validator->fails()) {
 
-            // Attempt to create a shopify customer
-            $shopify_response = ShopifyAdmin::createCustomer(
-                $request->first_name,
-                $request->last_name,
-                $request->email,
-                $request->mobile,
-                $request->password
-            );
+            $customerData = $this->validateCustomerdata($request);
 
-            $shopify_response_body = $shopify_response->collect();
+            if($customerData['success']){
 
-            if (!$shopify_response->failed()) {
-                $shopify_customer_id = $shopify_response_body["customer"]["id"];
+                // Attempt to create a shopify customer
+                $shopify_response = ShopifyAdmin::createCustomer(
+                    $request->first_name,
+                    $request->last_name,
+                    $request->email,
+                    $request->mobile,
+                    $request->password
+                );
 
-                if (intval($request->join_rewards)) {
+                $shopify_response_body = $shopify_response->collect();
 
-                    // Attempt to create a member in ZAP
-                    $zap_response = ZAP::createMember(
-                        $request->mobile,
-                        $request->first_name,
-                        $request->last_name,
-                        $request->email,
-                        $request->gender,
-                        new Carbon($request->birthday)
-                    );
+                if (!$shopify_response->failed()) {
+                    $shopify_customer_id = $shopify_response_body["customer"]["id"];
 
-                    $zap_response_body = $zap_response->collect();
+                    if (intval($request->join_rewards)) {
 
-                    if ($zap_response->failed()) {
-                        $zap_error_code = $zap_response_body["errorCode"];
+                        // Attempt to create a member in ZAP
+                        $zap_response = ZAP::createMember(
+                            $request->mobile,
+                            $request->first_name,
+                            $request->last_name,
+                            $request->email,
+                            $request->gender,
+                            new Carbon($request->birthday)
+                        );
 
-                        if (in_array($zap_error_code, [
-                            ZAPConstants::EMAIL_ALREADY_EXISTS,
-                            ZAPConstants::MOBILE_ALREADY_EXISTS
-                        ])) {
-                            $zap_request_mobile = substr($request->mobile, 1);
-                            $zap_membership_response = ZAP::getMembershipData($zap_request_mobile);
+                        $zap_response_body = $zap_response->collect();
 
-                            $zap_member_data = $zap_membership_response->collect();
+                        if ($zap_response->failed()) {
+                            $zap_error_code = $zap_response_body["errorCode"];
 
-                            if ($zap_member_data->has('data')) {
+                            if (in_array($zap_error_code, [
+                                ZAPConstants::EMAIL_ALREADY_EXISTS,
+                                ZAPConstants::MOBILE_ALREADY_EXISTS
+                            ])) {
+                                $zap_request_mobile = substr($request->mobile, 1);
+                                $zap_membership_response = ZAP::getMembershipData($zap_request_mobile);
 
-                                $zap_member_id = $zap_member_data['data']['userId'];
-                                $zap_member_mobile = $zap_member_data['data']['mobile'];
-                                $zap_member_email = $zap_member_data['data']['email'];
+                                $zap_member_data = $zap_membership_response->collect();
 
-                                // if the information matched the existing ZAP member
-                                if ($zap_member_mobile === $zap_request_mobile) {
+                                if ($zap_member_data->has('data')) {
 
-                                    // get the member balance
-                                    $zap_member_balance = ZAP::inquireBalance($request->mobile);
-                                    $zap_member_balance_data = $zap_member_balance->collect();
-                                    $customer_current_points = !empty($zap_member_balance_data['data']['currencies'])
-                                        ? $zap_member_balance_data['data']['currencies'][0]['validPoints']
-                                        : 0.00;
+                                    $zap_member_id = $zap_member_data['data']['userId'];
+                                    $zap_member_mobile = $zap_member_data['data']['mobile'];
+                                    $zap_member_email = $zap_member_data['data']['email'];
 
-                                    $this->addMetafieldsToNewCustomer(
-                                        $shopify_customer_id,
-                                        $zap_member_id,
-                                        $customer_current_points,
-                                        $request->gender,
-                                        $request->birthday
-                                    );
+                                    // if the information matched the existing ZAP member
+                                    if ($zap_member_mobile === $zap_request_mobile) {
 
-                                    $this->tagCustomerAsZAPMember($shopify_customer_id);
+                                        // get the member balance
+                                        $zap_member_balance = ZAP::inquireBalance($request->mobile);
+                                        $zap_member_balance_data = $zap_member_balance->collect();
+                                        $customer_current_points = !empty($zap_member_balance_data['data']['currencies'])
+                                            ? $zap_member_balance_data['data']['currencies'][0]['validPoints']
+                                            : 0.00;
 
-                                    $response = [
-                                        "success" => true,
-                                        "message" => "user created",
-                                    ];
-                                } else {
-                                    switch ($zap_error_code) {
-                                        case ZAPConstants::EMAIL_ALREADY_EXISTS:
-                                            $validator->errors()->add('email', 'email already exists.');
-                                            break;
+                                        $this->addMetafieldsToNewCustomer(
+                                            $shopify_customer_id,
+                                            $zap_member_id,
+                                            $customer_current_points,
+                                            $request->gender,
+                                            $request->birthday
+                                        );
 
-                                        case ZAPConstants::MOBILE_ALREADY_EXISTS:
-                                            $validator->errors()->add('mobile', 'mobile number already exists.');
-                                            break;
+                                        $this->tagCustomerAsZAPMember($shopify_customer_id);
 
-                                        default:
-                                            $validator->errors()->add('email', 'unexpected error occured.');
+                                        $response = [
+                                            "success" => true,
+                                            "message" => "user created",
+                                        ];
+                                    } else {
+                                        switch ($zap_error_code) {
+                                            case ZAPConstants::EMAIL_ALREADY_EXISTS:
+                                                $validator->errors()->add('email', 'email already exists.');
+                                                break;
+
+                                            case ZAPConstants::MOBILE_ALREADY_EXISTS:
+                                                $validator->errors()->add('mobile', 'mobile number already exists.');
+                                                break;
+
+                                            default:
+                                                $validator->errors()->add('email', 'unexpected error occured.');
+                                        }
+
+                                        $response = [
+                                            "success" => false,
+                                            "errors" => $validator->getMessageBag(),
+                                        ];
                                     }
-
+                                } else {
+                                    // if this error will just return an email already exists, since we can find the user using
+                                    // the mobile number sent
+                                    $validator->errors()->add('email', 'email already exists.');
                                     $response = [
                                         "success" => false,
                                         "errors" => $validator->getMessageBag(),
                                     ];
                                 }
-                            } else {
-                                // if this error will just return an email already exists, since we can find the user using
-                                // the mobile number sent
-                                $validator->errors()->add('email', 'email already exists.');
-                                $response = [
-                                    "success" => false,
-                                    "errors" => $validator->getMessageBag(),
-                                ];
                             }
+                        } else {
+                            $zap_member_id = $zap_response_body['data']['userId'];
+
+                            $this->addMetafieldsToNewCustomer(
+                                $shopify_customer_id,
+                                $zap_member_id,
+                                0.00,
+                                $request->gender,
+                                $request->birthday
+                            );
+
+                            ShopifyAdmin::addTagsToCustomer($shopify_customer_id, 'ZAP_MEMBER');
+
+                            $response = [
+                                "success" => true,
+                                "message" => "user created",
+                            ];
                         }
                     } else {
-                        $zap_member_id = $zap_response_body['data']['userId'];
 
                         $this->addMetafieldsToNewCustomer(
                             $shopify_customer_id,
-                            $zap_member_id,
+                            "N/A",
                             0.00,
                             $request->gender,
                             $request->birthday
                         );
-
-                        ShopifyAdmin::addTagsToCustomer($shopify_customer_id, 'ZAP_MEMBER');
 
                         $response = [
                             "success" => true,
@@ -238,38 +257,164 @@ class CustomerController extends Controller
                         ];
                     }
                 } else {
-
-                    $this->addMetafieldsToNewCustomer(
-                        $shopify_customer_id,
-                        "N/A",
-                        0.00,
-                        $request->gender,
-                        $request->birthday
-                    );
-
+                    collect($shopify_response_body["errors"])
+                        ->each(function ($item, $key) use (&$validator) {
+                            // mobile in shopify is named phone.
+                            $field = $key === 'phone' ? 'mobile' : $key;
+                            $first_error = $item[0];
+                            $validator->errors()->add($field, $field . ' ' . $first_error);
+                        });
                     $response = [
-                        "success" => true,
-                        "message" => "user created",
+                        "success" => false,
+                        "errors" => $validator->getMessageBag(),
                     ];
                 }
+
             } else {
-                collect($shopify_response_body["errors"])
-                    ->each(function ($item, $key) use (&$validator) {
-                        // mobile in shopify is named phone.
-                        $field = $key === 'phone' ? 'mobile' : $key;
-                        $first_error = $item[0];
-                        $validator->errors()->add($field, $field . ' ' . $first_error);
-                    });
+
+                $validator->errors()->add($customerData['key'], $customerData['value']);
+
                 $response = [
                     "success" => false,
                     "errors" => $validator->getMessageBag(),
                 ];
+                
             }
+
         } else {
             $response = [
                 "success" => false,
                 "errors" => $validator->getMessageBag(),
             ];
+        }
+
+        return $response;
+    }
+
+    private function validateCustomerdata(Request $request): Array
+    {
+        $response = [];
+        
+        //get shopify customer data
+
+        $response = $this->checkIfEmailExistsOnShopify($request);
+
+        if($response['success']){
+            $response = $this->checkIfMobileExistsOnShopify($request);
+
+            if($response['success'] && $request->input('join_rewards')){
+                $response = $this->checkIfMobileExistsOnZap($request);
+            }
+        }
+
+        return $response;
+    }
+
+    private function checkIfEmailExistsOnShopify(Request $request): Array
+    {
+        $response = [];
+        
+        //get shopify customer data
+        $shopify_response = ShopifyAdmin::findCustomer(array(
+            "email" => $request->input('email'),
+        ));
+
+        $shopify_response_body = $shopify_response->collect();
+
+        if (!$shopify_response->failed()) {
+            if(count($shopify_response_body['customers']) == 0){
+
+                $response = array(
+                    'success' => true,
+                );
+
+            }else {
+                $response = array(
+                    'success' => false,
+                    'key' => 'email',
+                    'value' => 'email exists in shopify'
+                );
+            }
+        } else {
+            $response = array(
+                'success' => false,
+                'key' => 'error',
+                'value' => 'Undefined Error. Please try again'
+            );
+        }
+
+        return $response;
+    }
+
+    private function checkIfMobileExistsOnShopify(Request $request): Array
+    {
+        $response = [];
+        
+        //get shopify customer data
+        $shopify_response = ShopifyAdmin::findCustomer(array(
+            "phone" => $request->input('mobile'),
+        ));
+
+        $shopify_response_body = $shopify_response->collect();
+
+        if (!$shopify_response->failed()) {
+            if(count($shopify_response_body['customers']) == 0){
+
+                $response = array(
+                    'success' => true,
+                );
+
+            }else {
+                $response = array(
+                    'success' => false,
+                    'key' => 'mobile',
+                    'value' => 'mobile exists in shopify'
+                );
+            }
+        } else {
+            $response = array(
+                'success' => false,
+                'key' => 'error',
+                'value' => 'Undefined Error. Please try again'
+            );
+        }
+
+        return $response;
+    }
+
+    private function checkIfMobileExistsOnZap(Request $request): Array
+    {
+        $response = [];
+        
+        //get shopify customer data
+        $zap_membership_resp = ZAP::getMembershipData(substr($request->input('mobile'), 1));
+
+        switch ($zap_membership_resp->status()) {
+            case Response::HTTP_NOT_FOUND:
+                $response = array(
+                    'success' => true,
+                );
+                break;
+            case Response::HTTP_UNAUTHORIZED:
+                $response = array(
+                    'success' => false,
+                    'key' => 'error',
+                    'value' => 'Undefined Error. Please try again'
+                );
+                break;
+            case Response::HTTP_OK:
+                $response = array(
+                    'success' => false,
+                    'key' => 'mobile',
+                    'value' => 'mobile exists in zap'
+                );;
+                break;
+            default:
+                $response = array(
+                    'success' => false,
+                    'key' => 'error',
+                    'value' => 'Undefined Error. Please try again'
+                );
         }
 
         return $response;

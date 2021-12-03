@@ -199,6 +199,9 @@ class WebhookController extends Controller
                 if (($customer_member_id !== 'N/A' || !empty($customer_member_id))
                     && !$tags->contains('ZAP_MEMBER_ORDER')
                 ) {
+
+                    Log::critical("adding tags to order #{$order_id}");
+
                     $tags->push('ZAP_MEMBER_ORDER');
                     ShopifyAdmin::addTagsToOrder($order_id, $tags->implode(','));
                 }

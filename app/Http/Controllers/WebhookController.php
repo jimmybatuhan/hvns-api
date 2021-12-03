@@ -201,7 +201,9 @@ class WebhookController extends Controller
                 ) {
 
                     Log::critical("adding tags to order #{$order_id}", [
-                        "current" => $tags
+                        "current" => $tags,
+                        "contain" => $tags->contains('ZAP_MEMBER_ORDER'),
+                        "customer_member_id" => $customer_member_id
                     ]);
 
                     $tags->push('ZAP_MEMBER_ORDER');

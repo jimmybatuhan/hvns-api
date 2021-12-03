@@ -200,7 +200,9 @@ class WebhookController extends Controller
                     && !$tags->contains('ZAP_MEMBER_ORDER')
                 ) {
 
-                    Log::critical("adding tags to order #{$order_id}");
+                    Log::critical("adding tags to order #{$order_id}", [
+                        "current" => $tags
+                    ]);
 
                     $tags->push('ZAP_MEMBER_ORDER');
                     ShopifyAdmin::addTagsToOrder($order_id, $tags->implode(','));

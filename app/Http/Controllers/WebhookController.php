@@ -205,7 +205,7 @@ class WebhookController extends Controller
             }
 
             if ($is_cancelled) {
-                abort(200);
+                return response()->json(['success' => true], Response::HTTP_OK);
             } else {
                 $order_metafields = ShopifyAdmin::fetchMetafield($order_id, ShopifyConstants::ORDER_RESOURCE);
 

@@ -50,7 +50,7 @@ class ZAP extends ZAPApiHandler
         string $last_name,
         // string $email,
         string $gender,
-        Carbon $birthday,
+        Carbon $birthday
         // bool $is_verified_email = true
     ): Response {
         return $this->http->post($this->api_url . '/register', [

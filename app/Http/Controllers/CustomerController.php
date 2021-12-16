@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\Log;
 
 class CustomerController extends Controller
 {
@@ -145,7 +146,7 @@ class CustomerController extends Controller
                             $request->mobile,
                             $request->first_name,
                             $request->last_name,
-                            $request->email,
+                            // $request->email,
                             $request->gender,
                             new Carbon($request->birthday)
                         );
@@ -163,13 +164,13 @@ class CustomerController extends Controller
                                 $zap_membership_response = ZAP::getMembershipData($zap_request_mobile);
 
                                 $zap_member_data = $zap_membership_response->collect();
-
+                                
                                 if ($zap_member_data->has('data')) {
 
                                     $zap_member_id = $zap_member_data['data']['userId'];
                                     $zap_member_mobile = $zap_member_data['data']['mobile'];
                                     $zap_member_email = $zap_member_data['data']['email'];
-
+                                    
                                     // if the information matched the existing ZAP member
                                     if ($zap_member_mobile === $zap_request_mobile) {
 
@@ -195,9 +196,15 @@ class CustomerController extends Controller
                                             "message" => "user created",
                                         ];
                                     } else {
+
+                                        Log::critical("failed to map zap user", [
+                                            'zap_member_mobile' => $zap_member_mobile,
+                                            'zap_request_mobile' => $zap_request_mobile,
+                                        ]);
+
                                         switch ($zap_error_code) {
                                             case ZAPConstants::EMAIL_ALREADY_EXISTS:
-                                                $validator->errors()->add('email', 'email already exists.');
+                                                $validator->errors()->add('email', 'email already exists');
                                                 break;
 
                                             case ZAPConstants::MOBILE_ALREADY_EXISTS:
@@ -216,6 +223,11 @@ class CustomerController extends Controller
                                 } else {
                                     // if this error will just return an email already exists, since we can find the user using
                                     // the mobile number sent
+
+                                    Log::critical($zap_response_body);
+                                    Log::critical($zap_request_mobile);
+                                    Log::critical($zap_membership_response);
+
                                     $validator->errors()->add('email', 'email already exists.');
                                     $response = [
                                         "success" => false,
@@ -332,7 +344,7 @@ class CustomerController extends Controller
                 $response = array(
                     'success' => false,
                     'key' => 'email',
-                    'value' => 'email exists in shopify'
+                    'value' => 'email already exists'
                 );
             }
         } else {
@@ -368,7 +380,7 @@ class CustomerController extends Controller
                 $response = array(
                     'success' => false,
                     'key' => 'mobile',
-                    'value' => 'mobile exists in shopify'
+                    'value' => 'mobile already exists'
                 );
             }
         } else {
@@ -406,7 +418,7 @@ class CustomerController extends Controller
                 $response = array(
                     'success' => false,
                     'key' => 'mobile',
-                    'value' => 'mobile exists in zap'
+                    'value' => 'mobile number already exists'
                 );;
                 break;
             default:
@@ -782,7 +794,7 @@ class CustomerController extends Controller
                         // if this error will just return an email already exists, since we can find the user using
                         // the mobile number sent
                         $status = 400;
-                        $validator->errors()->add('email', 'email already exists.');
+                        $validator->errors()->add('email', 'email address already exists.');
                         $response = [
                             "success" => false,
                             "errors" => $validator->getMessageBag(),

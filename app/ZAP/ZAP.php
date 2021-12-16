@@ -48,18 +48,18 @@ class ZAP extends ZAPApiHandler
         string $mobile_number,
         string $first_name,
         string $last_name,
-        string $email,
+        // string $email,
         string $gender,
         Carbon $birthday,
-        bool $is_verified_email = true
+        // bool $is_verified_email = true
     ): Response {
         return $this->http->post($this->api_url . '/register', [
             'birthday' => $birthday->format('Y-m-d'),
             'branchId' => $this->branch_id,
-            'email' => $email,
+            // 'email' => $email,
             'firstName' => $first_name,
             'gender' => $gender,
-            'isVerifiedEmail' => $is_verified_email,
+            // 'isVerifiedEmail' => $is_verified_email,
             'lastName' => $last_name,
             'locationId' => $this->location_id,
             'mobileNumber' => $mobile_number,

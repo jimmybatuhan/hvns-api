@@ -48,22 +48,27 @@ class ZAP extends ZAPApiHandler
         string $mobile_number,
         string $first_name,
         string $last_name,
-        // string $email,
+        string $email,
         string $gender,
-        Carbon $birthday
-        // bool $is_verified_email = true
+        Carbon $birthday,
+        bool $registerWithEmail = true
     ): Response {
-        return $this->http->post($this->api_url . '/register', [
+
+        $data = [
             'birthday' => $birthday->format('Y-m-d'),
             'branchId' => $this->branch_id,
-            // 'email' => $email,
             'firstName' => $first_name,
             'gender' => $gender,
-            // 'isVerifiedEmail' => $is_verified_email,
             'lastName' => $last_name,
             'locationId' => $this->location_id,
             'mobileNumber' => $mobile_number,
-        ]);
+        ];
+
+        if($registerWithEmail){
+            $data['email'] = $email;
+        }
+        
+        return $this->http->post($this->api_url . '/register', $data);
         // TODO handle error response later on, focusing on the happy path first.
         // ->throw(fn ($response, $e) => self::handleHttpError($response, $e))
     }
@@ -174,6 +179,8 @@ class ZAP extends ZAPApiHandler
 
     public function getMembershipData(string $mobile_number): Response
     {
+
+        dd($mobile_number);
         return $this->http->post($this->api_url . '/membership', [
             'mobileNumber' => $mobile_number,
             'merchantId' => $this->merchant_id,

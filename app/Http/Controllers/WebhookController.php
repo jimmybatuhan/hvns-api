@@ -173,6 +173,7 @@ class WebhookController extends Controller
                      * it is possible that this approach will throw an undefined index
                      * but i think this is safer rather than processing an invalid command
                      * causing unwanted behavior.
+                     * 
                      */
                     if ($should_return_all) {
                         return [];

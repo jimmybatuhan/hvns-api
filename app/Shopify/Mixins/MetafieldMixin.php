@@ -16,12 +16,15 @@ class MetafieldMixin
          */
         return function (string $namespace, string $key, ?string $meta_key = null)
         {
-            $metafields = $this->collect()['metafields'];
-            $metafield = Arr::first($metafields, fn ($metafield) =>
-                $metafield['namespace'] === $namespace && $metafield['key'] === $key
-            );
-
-            return $meta_key && $metafield ? $metafield[$meta_key] : $metafield;
+            try {
+                $metafields = $this->collect()['metafields'];
+                $metafield = Arr::first($metafields, fn ($metafield) =>
+                    $metafield['namespace'] === $namespace && $metafield['key'] === $key
+                );
+                return $meta_key && $metafield ? $metafield[$meta_key] : $metafield;
+            } catch (\Throwable $th) {
+                return "N/A";
+            }
         };
     }
 

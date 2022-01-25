@@ -31,10 +31,12 @@ Route::middleware(['log-route', 'cors'])->group(function () {
         Route::post('update', [CustomerController::class, 'postProcessUpdate'])->name('customer-update');
         Route::post('request-update-otp', [CustomerController::class, 'requestUpdateOTP'])->name('request-update-otp');
     });
-
+    
     Route::post('discount-code', [DiscountController::class, 'generateDiscountCode']);
     Route::post('discount-points', [DiscountController::class, 'getDiscountPoints']);
     Route::post('register-claim-500', [DiscountController::class, 'registerClaim500']);
+
+    Route::get('test', [WebhookController::class, 'test']);
 });
 
 Route::prefix('shopify')->middleware(['shopify-verify-webhook', 'log-route'])->group(function () {

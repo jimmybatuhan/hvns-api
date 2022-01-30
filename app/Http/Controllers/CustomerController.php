@@ -767,7 +767,7 @@ class CustomerController extends Controller
             );
 
             $zap_response_body = $zap_response->collect();
-
+            
             if ($zap_response->failed()) {
 
                 $zap_error_code = $zap_response_body["errorCode"];

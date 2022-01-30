@@ -197,7 +197,7 @@ class WebhookController extends Controller
                  *  the order doesnt not have a zap_member_order tag
                  * */
 
-                if (($customer_member_id !== 'N/A' || !empty($customer_member_id))
+                if (($customer_member_id !== null && $customer_member_id['value'] !== 'N/A' && !empty($customer_member_id))
                     && !$tags_trimmed->contains('ZAP_MEMBER_ORDER') 
                 ) {
 

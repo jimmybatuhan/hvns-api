@@ -99,6 +99,19 @@ class WebhookController extends Controller
                             $customer_balance_metafield_id,
                             $current_customer_balance - $points_used
                         );
+
+                        //add points to return
+                        ShopifyAdmin::addMetafields(
+                            ShopifyConstants::ORDER_RESOURCE,
+                            $order_id,
+                            collect()
+                                ->push([
+                                    'key' => ZAPConstants::POINTS_TO_RETURN_KEY,
+                                    'value' => $points_used,
+                                    'namespace' => ZAPConstants::TRANSACTION_NAMESPACE
+                                ])
+                        );
+
                     } else {
                         Log::critical("failed to deduct used points of order #{$order_id}", [
                             'discount_code' => $zap_discount['code'],
@@ -157,6 +170,20 @@ class WebhookController extends Controller
                 return trim($tag);
             });
 
+            //get discount codes
+            $customer_id = $customer['id'];
+            $zap_discount = collect($body['discount_codes'])
+                    ->filter(function ($discount) use ($customer_id) {
+                        $code = explode("-", $discount["code"]);
+                        $promo_type = $code[0] ?? null;
+                        $customer = $code[1] ?? null;
+
+                        return $customer_id == $customer
+                            && (ShopifyConstants::USE_500_POINTS_PER_ITEM === $promo_type
+                                || ShopifyConstants::USE_POINTS_PREFIX === $promo_type);
+                    })
+                    ->first();
+
             $returned_items = $tags_trimmed
                 ->filter(fn ($tag) => Str::contains($tag, 'RETURN'))
                 ->map(function ($tag) use (&$should_return_all) {
@@ -214,6 +241,25 @@ class WebhookController extends Controller
 
             if ($is_cancelled) {
                 return response()->json(['success' => true], Response::HTTP_OK);
+            }  else if ($zap_discount && $should_return_all) {
+                    
+                $code = explode("-", $zap_discount["code"]);
+                $points_used = $code[2] ?? 0;
+
+                $order_metafields = ShopifyAdmin::fetchMetafield($order_id, ShopifyConstants::ORDER_RESOURCE);
+                $points_to_return_metafield = $order_metafields->getPointsToReturnMetafieldId();
+                $points_to_return = $order_metafields->getPointsToReturnMetafield();
+
+                if($points_to_return > 0){
+                    $this->customerRewardPoints($body, $points_used, ZAPConstants::RETURNED_POINT_STATUS);
+                    ShopifyAdmin::updateMetafieldById(
+                        $points_to_return_metafield,
+                        0
+                    );
+                }
+
+                return response()->json(['success' => true], Response::HTTP_OK);
+
             } else {
                 $order_metafields = ShopifyAdmin::fetchMetafield($order_id, ShopifyConstants::ORDER_RESOURCE);
 
@@ -481,7 +527,7 @@ class WebhookController extends Controller
         }
     }
 
-    private function customerRewardPoints(array $payload, float $amount): void
+    private function customerRewardPoints(array $payload, float $amount, bool $status = ZAPConstants::EARN_POINT_STATUS): void
     {
         $order_id = $payload['id'];
         $customer = $payload['customer'];
@@ -506,7 +552,7 @@ class WebhookController extends Controller
             $zap_return_point_transaction = [
                 ZAPConstants::TRANSACTION_REFERENCE_KEY => $zap_transaction_reference_no,
                 ZAPConstants::TRANSACTION_POINTS_KEY => $amount,
-                ZAPConstants::TRANSACTION_STATUS_KEY => ZAPConstants::EARN_POINT_STATUS,
+                ZAPConstants::TRANSACTION_STATUS_KEY => $status,
                 'fulfilled_at' => Carbon::now()->toIso8601String(),
             ];
 

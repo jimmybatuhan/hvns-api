@@ -193,6 +193,30 @@ class MetafieldMixin
         };
     }
 
+    public function getPointsToReturnMetafieldId(): Closure
+    {
+        return function ()
+        {
+            return $this->metafield(
+                ZAPConstants::TRANSACTION_NAMESPACE,
+                ZAPConstants::POINTS_TO_RETURN_KEY,
+                ShopifyConstants::METAFIELD_INDEX_ID,
+            );
+        };
+    }
+
+    public function getPointsToReturnMetafield(): Closure
+    {
+        return function ()
+        {
+            return @json_decode($this->metafield(
+                ZAPConstants::TRANSACTION_NAMESPACE,
+                ZAPConstants::POINTS_TO_RETURN_KEY,
+                ShopifyConstants::METAFIELD_INDEX_VALUE
+            ), true);
+        };
+    }
+
     /**
      * Get the metafield id of the line item promotions
      */

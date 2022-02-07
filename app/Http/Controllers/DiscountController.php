@@ -209,7 +209,7 @@ class DiscountController extends Controller
         try {
             $metafields = ShopifyAdmin::fetchMetafield($shopify_customer_id, ShopifyConstants::CUSTOMER_RESOURCE);
             $active_discount_code_id = $metafields->ActiveDiscountCodeId();
-            $current_active_discount = collect($metafields->ActiveDiscountCode());
+            $current_active_discount = $metafields->ActiveDiscountCode();
 
             throw new Exception(json_encode(["a" => $current_active_discount]));
 

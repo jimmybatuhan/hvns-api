@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\GenerateDiscountCodeRequest;
-use App\Shopify\Facades\ShopifyAdmin;
-use Carbon\Carbon;
 use App\Shopify\Constants as ShopifyConstants;
+use App\Shopify\Facades\ShopifyAdmin;
+use App\ZAP\Constants as ZAPConstants;
 use App\ZAP\Facades\ZAP;
+use Carbon\Carbon;
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Symfony\Component\HttpFoundation\Response;
 
 class DiscountController extends Controller
 {
@@ -47,25 +47,17 @@ class DiscountController extends Controller
             }
 
             $collection_products = $collection_response->collect();
-
             $collection_products = collect($collection_products["products"]);
             $collection_products = $collection_products->map(fn ($product) => $product["id"]);
             $cart_items = collect($request->items);
             $remaining_item_claims = config('shopify-app.claim_promo_item_limit');
-
-            // $elligible_item_count_allowed = $available_customer_points % ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED;
-
-            // if($remaining_item_claims > $elligible_item_count_allowed){
-            //     $remaining_item_claims = $elligible_item_count_allowed;
-            // }
-
             $cart_items->each(function (array $product) use (&$total_discount, &$total_points_used, &$remaining_item_claims, $collection_products) {
                 /** check item if eligible for claim 500 */
                 if (in_array($product["product_id"], $collection_products->toArray())) {
                     if ($remaining_item_claims > 0) {
-                        
+
                         $quantity = $product["quantity"];
-                        if($quantity > $remaining_item_claims){
+                        if ($quantity > $remaining_item_claims) {
                             $quantity = $remaining_item_claims;
                         }
 
@@ -76,14 +68,13 @@ class DiscountController extends Controller
                 }
             });
 
-            if($total_points_used < $available_customer_points){
-                $total_points_used = 0; 
+            if ($total_points_used < $available_customer_points) {
+                $total_points_used = 0;
                 $total_discount = 0;
             }
 
             $timestamp = Carbon::now()->timestamp;
             $discount_name .= "-{$timestamp}-{$total_points_used}";
-            // $discount_name .= "-{$total_points_used}";
         } else {
             $points_to_use = $request->points_to_use ?? 0;
             if ($points_to_use > ShopifyConstants::MAXIMUM_POINTS_TO_USE) {
@@ -97,87 +88,44 @@ class DiscountController extends Controller
             $total_points_used = $total_discount;
             $timestamp = Carbon::now()->timestamp;
             $discount_name .= "-{$timestamp}-{$total_points_used}";
+
+            // check for existing discount name in customer metafield if has active discount codes, delete codes
+            // store the new discount code
+            $this->resetActiveDiscountCodes();
         }
+
         $total_discount = strval($total_discount * -1);
+        $price_rule_response = ShopifyAdmin::createPriceRule(
+            $discount_name,
+            $shopify_customer_id,
+            $total_discount
+        );
 
-        // $shopify_response = ShopifyAdmin::getDiscountCode($discount_name);
+        $new_price_rule = $price_rule_response->collect();
 
-        // if ($shopify_response->ok()) {
-        //     // if discount code already exists, get the price rule
-        //     $discount_response = $shopify_response->collect();
-        //     $discount_price_rule_id = $discount_response['discount_code']['price_rule_id'];
-        //     $price_rule_response = ShopifyAdmin::getPriceRule($discount_price_rule_id);
-        //     $price_rule = $price_rule_response->collect();
-
-        //     if ($price_rule_response->failed()) {
-        //         return response()->json([
-        //             'success' => false,
-        //             'message' => 'failed to get the price rule',
-        //         ]);
-        //     }
-
-        //     // if points and the amount is not the same
-        //     $price_rule_amount = $price_rule['price_rule']['value'];
-
-        //     if ($total_discount !== $price_rule_amount) {
-        //         // update the price rule
-        //         $price_rule_update_response = ShopifyAdmin::updatePriceRuleAmount(
-        //             $discount_price_rule_id,
-        //             $total_discount
-        //         );
-
-        //         if ($price_rule_update_response->failed()) {
-        //             return response()->json([
-        //                 'success' => false,
-        //                 'message' => 'failed to update the price rule',
-        //             ]);
-        //         }
-        //     }
-
-        //     return response()->json([
-        //         'success' => true,
-        //         'discount_code' => $discount_name,
-        //     ]);
-
-        // } else if ($shopify_response->status() === Response::HTTP_NOT_FOUND) {
-
-            $price_rule_response = ShopifyAdmin::createPriceRule(
-                $discount_name,
-                $shopify_customer_id,
-                $total_discount
-            );
-
-            $new_price_rule = $price_rule_response->collect();
-
-            if ($price_rule_response->failed()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'failed to create a new price rule',
-                ]);
-            }
-
-            $new_discount_code_response = ShopifyAdmin::createDiscountCode(
-                $new_price_rule['price_rule']['id'],
-                $discount_name
-            );
-
-            if ($new_discount_code_response->failed()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'failed to create a new discount',
-                ]);
-            }
-
+        if ($price_rule_response->failed()) {
             return response()->json([
-                'success' => true,
-                'discount_code' => $discount_name,
+                'success' => false,
+                'message' => 'failed to create a new price rule',
             ]);
-        // } else {
-        //     return response()->json([
-        //         'success' => false,
-        //         'message' => 'failed to create discount code',
-        //     ]);
-        // }
+        }
+
+        $new_discount_code_response = ShopifyAdmin::createDiscountCode(
+            $new_price_rule['price_rule']['id'],
+            $discount_name
+        );
+
+        if ($new_discount_code_response->failed()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'failed to create a new discount',
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'discount_code' => $discount_name,
+        ]);
     }
 
     public function getDiscountPoints(Request $request): JsonResponse
@@ -254,5 +202,46 @@ class DiscountController extends Controller
         }
 
         return response()->json($response);
+    }
+
+    private function resetActiveDiscountCodes(string $shopify_customer_id, string $discount_name): bool
+    {
+        try {
+            $metafields = ShopifyAdmin::fetchMetafields($shopify_customer_id, ShopifyConstants::CUSTOMER_RESOURCE);
+            $active_discount_code_id = $metafields->ActiveDiscountCodeId();
+            $current_active_discounts = collect($metafields->ActiveDiscountCodes());
+            $current_active_discounts->each(function (string $code) {
+                $discount = ShopifyAdmin::getDiscountCode($code)->collect();
+                $price_rule_id = $discount["discount_code"]["price_rule_id"];
+                $discount_id = $discount["discount_code"]["id"];
+                ShopifyAdmin::deleteDiscountCode($discount_id, $price_rule_id);
+            });
+
+            $active_discount_code = collect();
+            $active_discount_code->push([
+                "key" => "last_active_discount",
+                "namespace" => ZAPConstants::MEMBER_NAMESPACE,
+                "value" => $discount_name,
+            ]);
+
+            if ($active_discount_code_id) {
+                ShopifyAdmin::addMetafields(
+                    ShopifyConstants::CUSTOMER_RESOURCE,
+                    $shopify_customer_id,
+                    json_encode($active_discount_code->toArray())
+                );
+            } else {
+                ShopifyAdmin::updateMetafieldById(
+                    $active_discount_code_id,
+                    json_encode($active_discount_code->toArray()),
+                    ShopifyConstants::METAFIELD_VALUE_TYPE_JSON_STRING
+                );
+            }
+        } catch (Exception $e) {
+            report($e);
+            return false;
+        }
+
+        return true;
     }
 }

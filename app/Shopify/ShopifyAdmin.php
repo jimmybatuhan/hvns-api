@@ -189,6 +189,11 @@ class ShopifyAdmin
         return $this->http->get($this->admin_api . "/discount_codes/lookup.json?code={$code}");
     }
 
+    public function deleteDiscountCode(string $discount_code_id, string $price_rule_id): Response
+    {
+        return $this->http->delete($this->admin_api . "/price_rules/{$price_rule_id}/discount_codes/${$discount_code_id}.json");
+    }
+
     public function getPriceRule(string $price_rule_id): Response
     {
         return $this->http->get($this->admin_api . "/price_rules/{$price_rule_id}.json");

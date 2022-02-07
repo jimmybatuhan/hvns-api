@@ -5,6 +5,7 @@ namespace App\Shopify\Mixins;
 use App\Shopify\Constants as ShopifyConstants;
 use App\ZAP\Constants as ZAPConstants;
 use Closure;
+use Exception;
 use Illuminate\Support\Arr;
 
 class MetafieldMixin
@@ -14,15 +15,17 @@ class MetafieldMixin
         /**
          * @return string|array|null
          */
-        return function (string $namespace, string $key, ?string $meta_key = null)
-        {
+        return function (string $namespace, string $key, ?string $meta_key = null) {
             try {
                 $metafields = $this->collect()['metafields'];
-                $metafield = Arr::first($metafields, fn ($metafield) =>
+                $metafield = Arr::first(
+                    $metafields,
+                    fn ($metafield) =>
                     $metafield['namespace'] === $namespace && $metafield['key'] === $key
                 );
                 return $meta_key && $metafield ? $metafield[$meta_key] : $metafield;
-            } catch (\Throwable $th) {
+            } catch (Exception $e) {
+                report($e);
                 return "N/A";
             }
         };
@@ -30,84 +33,88 @@ class MetafieldMixin
 
     public function ZAPMemberTotalPoints(): Closure
     {
-        return function (?string $meta_key = null)
-        {
-           return $this->metafield(
-               ZAPConstants::MEMBER_NAMESPACE,
-               ZAPConstants::MEMBER_POINTS_KEY,
-               $meta_key
+        return function (?string $meta_key = null) {
+            return $this->metafield(
+                ZAPConstants::MEMBER_NAMESPACE,
+                ZAPConstants::MEMBER_POINTS_KEY,
+                $meta_key
             );
         };
     }
 
     public function ZAPMemberId(): Closure
     {
-        return function (?string $meta_key = null)
-        {
-           return $this->metafield(
-               ZAPConstants::MEMBER_NAMESPACE,
-               ZAPConstants::MEMBER_ID_KEY,
-               $meta_key
+        return function (?string $meta_key = null) {
+            return $this->metafield(
+                ZAPConstants::MEMBER_NAMESPACE,
+                ZAPConstants::MEMBER_ID_KEY,
+                $meta_key
             );
         };
     }
 
     public function MemberBirthdayId(): Closure
     {
-        return function (?string $meta_key = null)
-        {
-           return $this->metafield(
-               ZAPConstants::MEMBER_NAMESPACE,
-               ZAPConstants::MEMBER_BIRTHDAY_KEY,
-               $meta_key
+        return function (?string $meta_key = null) {
+            return $this->metafield(
+                ZAPConstants::MEMBER_NAMESPACE,
+                ZAPConstants::MEMBER_BIRTHDAY_KEY,
+                $meta_key
+            );
+        };
+    }
+
+    public function ActiveDiscountCodeId(): Closure
+    {
+        return function (?string $meta_key = null) {
+            return $this->metafield(
+                ZAPConstants::MEMBER_NAMESPACE,
+                "last_active_discount",
+                $meta_key
             );
         };
     }
 
     public function MemberSinceId(): Closure
     {
-        return function (?string $meta_key = null)
-        {
-           return $this->metafield(
-               ZAPConstants::MEMBER_NAMESPACE,
-               ZAPConstants::MEMBER_SINCE_KEY,
-               $meta_key
+        return function (?string $meta_key = null) {
+            return $this->metafield(
+                ZAPConstants::MEMBER_NAMESPACE,
+                ZAPConstants::MEMBER_SINCE_KEY,
+                $meta_key
             );
         };
     }
 
     public function MemberGenderId(): Closure
     {
-        return function (?string $meta_key = null)
-        {
-           return $this->metafield(
-               ZAPConstants::MEMBER_NAMESPACE,
-               ZAPConstants::MEMBER_GENDER_KEY,
-               $meta_key
+        return function (?string $meta_key = null) {
+            return $this->metafield(
+                ZAPConstants::MEMBER_NAMESPACE,
+                ZAPConstants::MEMBER_GENDER_KEY,
+                $meta_key
             );
         };
     }
 
     public function ZAPTransactions(): Closure
     {
-        return function (?string $meta_key = null)
-        {
-           return $this->metafield(
-               ZAPConstants::TRANSACTION_NAMESPACE,
-               ZAPConstants::TRANSACTION_LIST_KEY,
-               $meta_key
+        return function (?string $meta_key = null) {
+            return $this->metafield(
+                ZAPConstants::TRANSACTION_NAMESPACE,
+                ZAPConstants::TRANSACTION_LIST_KEY,
+                $meta_key
             );
         };
     }
 
     public function lastZAPTransactionRefNo(): Closure
     {
-        return function (?string $meta_key = null)
-        {
-           return $this->metafield(
-               ZAPConstants::TRANSACTION_NAMESPACE,
-               ZAPConstants::LAST_TRANSACTION_KEY,
-               $meta_key
+        return function (?string $meta_key = null) {
+            return $this->metafield(
+                ZAPConstants::TRANSACTION_NAMESPACE,
+                ZAPConstants::LAST_TRANSACTION_KEY,
+                $meta_key
             );
         };
     }
@@ -117,8 +124,7 @@ class MetafieldMixin
      */
     public function ZAPTransactionListMetaId(): Closure
     {
-        return function ()
-        {
+        return function () {
             return $this->metafield(
                 ZAPConstants::TRANSACTION_NAMESPACE,
                 ZAPConstants::TRANSACTION_LIST_KEY,
@@ -127,13 +133,23 @@ class MetafieldMixin
         };
     }
 
+    public function ActiveDiscountCodes(): Closure
+    {
+        return function () {
+            return @json_decode($this->metafield([
+                ZAPConstants::MEMBER_NAMESPACE,
+                "last_active_discount",
+                ShopifyConstants::METAFIELD_INDEX_VALUE,
+            ]));
+        };
+    }
+
     public function transactionList(): Closure
     {
         /**
          * @return array|null
          */
-        return function ()
-        {
+        return function () {
             return @json_decode($this->metafield(
                 ZAPConstants::TRANSACTION_NAMESPACE,
                 ZAPConstants::TRANSACTION_LIST_KEY,
@@ -147,8 +163,7 @@ class MetafieldMixin
      */
     public function lastZAPTransactionMetaId(): Closure
     {
-        return function ()
-        {
+        return function () {
             return $this->metafield(
                 ZAPConstants::TRANSACTION_NAMESPACE,
                 ZAPConstants::LAST_TRANSACTION_KEY,
@@ -159,8 +174,7 @@ class MetafieldMixin
 
     public function lastZAPTransaction(): Closure
     {
-        return function ()
-        {
+        return function () {
             return @json_decode($this->metafield(
                 ZAPConstants::TRANSACTION_NAMESPACE,
                 ZAPConstants::LAST_TRANSACTION_KEY,
@@ -171,8 +185,7 @@ class MetafieldMixin
 
     public function getPointsToEarnMetafieldId(): Closure
     {
-        return function ()
-        {
+        return function () {
             return $this->metafield(
                 ZAPConstants::TRANSACTION_NAMESPACE,
                 ZAPConstants::POINTS_TO_EARN_KEY,
@@ -183,8 +196,7 @@ class MetafieldMixin
 
     public function getPointsToEarnMetafield(): Closure
     {
-        return function ()
-        {
+        return function () {
             return @json_decode($this->metafield(
                 ZAPConstants::TRANSACTION_NAMESPACE,
                 ZAPConstants::POINTS_TO_EARN_KEY,
@@ -195,8 +207,7 @@ class MetafieldMixin
 
     public function getPointsToReturnMetafieldId(): Closure
     {
-        return function ()
-        {
+        return function () {
             return $this->metafield(
                 ZAPConstants::TRANSACTION_NAMESPACE,
                 ZAPConstants::POINTS_TO_RETURN_KEY,
@@ -207,8 +218,7 @@ class MetafieldMixin
 
     public function getPointsToReturnMetafield(): Closure
     {
-        return function ()
-        {
+        return function () {
             return @json_decode($this->metafield(
                 ZAPConstants::TRANSACTION_NAMESPACE,
                 ZAPConstants::POINTS_TO_RETURN_KEY,
@@ -222,8 +232,7 @@ class MetafieldMixin
      */
     public function getLineItemPointsMetafieldId(): Closure
     {
-        return function ()
-        {
+        return function () {
             return $this->metafield(
                 ZAPConstants::TRANSACTION_NAMESPACE,
                 ZAPConstants::LINE_ITEM_POINTS,
@@ -237,8 +246,7 @@ class MetafieldMixin
         /**
          * @return array|null
          */
-        return function ()
-        {
+        return function () {
             return @json_decode($this->metafield(
                 ZAPConstants::TRANSACTION_NAMESPACE,
                 ZAPConstants::LINE_ITEM_POINTS,
@@ -252,8 +260,7 @@ class MetafieldMixin
      */
     public function getPointsEarnedMetafieldId(): Closure
     {
-        return function ()
-        {
+        return function () {
             return $this->metafield(
                 ZAPConstants::TRANSACTION_NAMESPACE,
                 ZAPConstants::POINTS_EARNED,
@@ -267,8 +274,7 @@ class MetafieldMixin
         /**
          * @return array|null
          */
-        return function ()
-        {
+        return function () {
             return @json_decode($this->metafield(
                 ZAPConstants::TRANSACTION_NAMESPACE,
                 ZAPConstants::POINTS_EARNED,

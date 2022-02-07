@@ -76,7 +76,7 @@ class DiscountController extends Controller
                 }
             });
 
-            $timestamp = Carbon::now()->toISOString();
+            $timestamp = Carbon::now()->timestamp;
             $discount_name .= "-{$timestamp}-{$total_points_used}";
             // $discount_name .= "-{$total_points_used}";
         } else {
@@ -90,7 +90,7 @@ class DiscountController extends Controller
             }
 
             $total_points_used = $total_discount;
-            $timestamp = Carbon::now()->toISOString();
+            $timestamp = Carbon::now()->timestamp;
             $discount_name .= "-{$timestamp}-{$total_points_used}";
         }
         $total_discount = strval($total_discount * -1);

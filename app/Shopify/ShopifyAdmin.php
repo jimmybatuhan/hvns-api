@@ -164,12 +164,13 @@ class ShopifyAdmin
                 'allocation_method' => 'across',
                 'value_type' => 'fixed_amount',
                 'value' => $amount,
-                // "once_per_customer" => true,
+                "once_per_customer" => true,
                 'prerequisite_customer_ids' => [
                     $customer_id,
                 ],
                 'customer_selection' => 'prerequisite',
                 'starts_at' => Carbon::now()->toISOString(),
+                'ends_at' => Carbon::now()->addMinutes(5)->toISOString(),
             ],
         ]);
     }

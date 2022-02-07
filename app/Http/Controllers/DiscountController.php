@@ -232,7 +232,7 @@ class DiscountController extends Controller
                 );
             } else {
                 ShopifyAdmin::updateMetafieldById(
-                    $active_discount_code_id,
+                    $active_discount_code_id["id"],
                     json_encode($active_discount_code->toArray()),
                     ShopifyConstants::METAFIELD_VALUE_TYPE_JSON_STRING
                 );
@@ -245,3 +245,6 @@ class DiscountController extends Controller
         return true;
     }
 }
+
+
+USP-5773760692398-1644228869-500

@@ -76,6 +76,11 @@ class DiscountController extends Controller
                 }
             });
 
+            if($total_points_used < $available_customer_points){
+                $total_points_used = 0; 
+                $total_discount = 0;
+            }
+
             $timestamp = Carbon::now()->timestamp;
             $discount_name .= "-{$timestamp}-{$total_points_used}";
             // $discount_name .= "-{$total_points_used}";

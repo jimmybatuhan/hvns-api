@@ -245,6 +245,3 @@ class DiscountController extends Controller
         return true;
     }
 }
-
-
-USP-5773760692398-1644228869-500

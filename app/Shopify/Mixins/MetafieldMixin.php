@@ -136,11 +136,11 @@ class MetafieldMixin
     public function ActiveDiscountCodes(): Closure
     {
         return function () {
-            return @json_decode($this->metafield([
+            return @json_decode($this->metafield(
                 ZAPConstants::MEMBER_NAMESPACE,
                 "last_active_discount",
                 ShopifyConstants::METAFIELD_INDEX_VALUE,
-            ]));
+            ));
         };
     }
 

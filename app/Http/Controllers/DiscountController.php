@@ -104,8 +104,6 @@ class DiscountController extends Controller
         $new_price_rule = $price_rule_response->collect();
 
         if ($price_rule_response->failed()) {
-            report(new Exception(json_encode($price_rule_response->collect())));
-
             return response()->json([
                 'success' => false,
                 'message' => 'failed to create a new price rule',

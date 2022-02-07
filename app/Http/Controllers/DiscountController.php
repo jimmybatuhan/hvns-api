@@ -209,13 +209,12 @@ class DiscountController extends Controller
         try {
             $metafields = ShopifyAdmin::fetchMetafield($shopify_customer_id, ShopifyConstants::CUSTOMER_RESOURCE);
             $active_discount_code_id = $metafields->ActiveDiscountCodeId();
-            $current_active_discounts = collect($metafields->ActiveDiscountCodes());
-            $current_active_discounts->each(function (string $code) {
-                $discount = ShopifyAdmin::getDiscountCode($code)->collect();
-                $price_rule_id = $discount["discount_code"]["price_rule_id"];
-                $discount_id = $discount["discount_code"]["id"];
-                ShopifyAdmin::deleteDiscountCode($discount_id, $price_rule_id);
-            });
+            $current_active_discount = collect($metafields->ActiveDiscountCode());
+            $discount = ShopifyAdmin::getDiscountCode($current_active_discount["value"])->collect();
+            $price_rule_id = $discount["discount_code"]["price_rule_id"];
+            $discount_id = $discount["discount_code"]["id"];
+
+            ShopifyAdmin::deleteDiscountCode($discount_id, $price_rule_id);
 
             $active_discount_code = collect();
             $active_discount_code->push([
@@ -233,7 +232,7 @@ class DiscountController extends Controller
             } else {
                 ShopifyAdmin::updateMetafieldById(
                     $active_discount_code_id["id"],
-                    json_encode($active_discount_code->toArray()),
+                    $discount_name,
                     ShopifyConstants::METAFIELD_VALUE_TYPE_JSON_STRING
                 );
             }

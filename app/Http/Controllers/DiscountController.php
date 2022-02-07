@@ -207,7 +207,7 @@ class DiscountController extends Controller
     private function resetActiveDiscountCodes(string $shopify_customer_id, string $discount_name): bool
     {
         try {
-            $metafields = ShopifyAdmin::fetchMetafields($shopify_customer_id, ShopifyConstants::CUSTOMER_RESOURCE);
+            $metafields = ShopifyAdmin::fetchMetafield($shopify_customer_id, ShopifyConstants::CUSTOMER_RESOURCE);
             $active_discount_code_id = $metafields->ActiveDiscountCodeId();
             $current_active_discounts = collect($metafields->ActiveDiscountCodes());
             $current_active_discounts->each(function (string $code) {

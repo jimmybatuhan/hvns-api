@@ -66,7 +66,7 @@ class WebhookController extends Controller
                 // if the customer used their zap points as a discount
                 if ($zap_discount) {
                     $code = explode("-", $zap_discount["code"]);
-                    $points_used = $code[2] ?? 0;
+                    $points_used = $code[3] ?? 0;
 
                     $use_points_response = ZAP::deductPoints($points_used, $mobile);
 

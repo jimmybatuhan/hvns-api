@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\GenerateDiscountCodeRequest;
 use App\Shopify\Facades\ShopifyAdmin;
+use Carbon\Carbon;
 use App\Shopify\Constants as ShopifyConstants;
 use App\ZAP\Facades\ZAP;
 use Illuminate\Http\JsonResponse;
@@ -75,7 +76,9 @@ class DiscountController extends Controller
                 }
             });
 
-            $discount_name .= "-{$total_points_used}";
+            $timestamp = Carbon::now()->toISOString();
+            $discount_name .= "-{$timestamp}-{$total_points_used}";
+            // $discount_name .= "-{$total_points_used}";
         } else {
             $points_to_use = $request->points_to_use ?? 0;
             if ($points_to_use > ShopifyConstants::MAXIMUM_POINTS_TO_USE) {
@@ -87,50 +90,51 @@ class DiscountController extends Controller
             }
 
             $total_points_used = $total_discount;
-            $discount_name .= "-{$total_points_used}";
+            $timestamp = Carbon::now()->toISOString();
+            $discount_name .= "-{$timestamp}-{$total_points_used}";
         }
         $total_discount = strval($total_discount * -1);
 
-        $shopify_response = ShopifyAdmin::getDiscountCode($discount_name);
+        // $shopify_response = ShopifyAdmin::getDiscountCode($discount_name);
 
-        if ($shopify_response->ok()) {
-            // if discount code already exists, get the price rule
-            $discount_response = $shopify_response->collect();
-            $discount_price_rule_id = $discount_response['discount_code']['price_rule_id'];
-            $price_rule_response = ShopifyAdmin::getPriceRule($discount_price_rule_id);
-            $price_rule = $price_rule_response->collect();
+        // if ($shopify_response->ok()) {
+        //     // if discount code already exists, get the price rule
+        //     $discount_response = $shopify_response->collect();
+        //     $discount_price_rule_id = $discount_response['discount_code']['price_rule_id'];
+        //     $price_rule_response = ShopifyAdmin::getPriceRule($discount_price_rule_id);
+        //     $price_rule = $price_rule_response->collect();
 
-            if ($price_rule_response->failed()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'failed to get the price rule',
-                ]);
-            }
+        //     if ($price_rule_response->failed()) {
+        //         return response()->json([
+        //             'success' => false,
+        //             'message' => 'failed to get the price rule',
+        //         ]);
+        //     }
 
-            // if points and the amount is not the same
-            $price_rule_amount = $price_rule['price_rule']['value'];
+        //     // if points and the amount is not the same
+        //     $price_rule_amount = $price_rule['price_rule']['value'];
 
-            if ($total_discount !== $price_rule_amount) {
-                // update the price rule
-                $price_rule_update_response = ShopifyAdmin::updatePriceRuleAmount(
-                    $discount_price_rule_id,
-                    $total_discount
-                );
+        //     if ($total_discount !== $price_rule_amount) {
+        //         // update the price rule
+        //         $price_rule_update_response = ShopifyAdmin::updatePriceRuleAmount(
+        //             $discount_price_rule_id,
+        //             $total_discount
+        //         );
 
-                if ($price_rule_update_response->failed()) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'failed to update the price rule',
-                    ]);
-                }
-            }
+        //         if ($price_rule_update_response->failed()) {
+        //             return response()->json([
+        //                 'success' => false,
+        //                 'message' => 'failed to update the price rule',
+        //             ]);
+        //         }
+        //     }
 
-            return response()->json([
-                'success' => true,
-                'discount_code' => $discount_name,
-            ]);
+        //     return response()->json([
+        //         'success' => true,
+        //         'discount_code' => $discount_name,
+        //     ]);
 
-        } else if ($shopify_response->status() === Response::HTTP_NOT_FOUND) {
+        // } else if ($shopify_response->status() === Response::HTTP_NOT_FOUND) {
 
             $price_rule_response = ShopifyAdmin::createPriceRule(
                 $discount_name,
@@ -163,12 +167,12 @@ class DiscountController extends Controller
                 'success' => true,
                 'discount_code' => $discount_name,
             ]);
-        } else {
-            return response()->json([
-                'success' => false,
-                'message' => 'failed to create discount code',
-            ]);
-        }
+        // } else {
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => 'failed to create discount code',
+        //     ]);
+        // }
     }
 
     public function getDiscountPoints(Request $request): JsonResponse

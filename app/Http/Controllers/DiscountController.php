@@ -217,7 +217,6 @@ class DiscountController extends Controller
             ]);
 
             if (empty($active_discount_code_id)) {
-                throw new Exception("aaa");
                 ShopifyAdmin::addMetafields(
                     ShopifyConstants::CUSTOMER_RESOURCE,
                     $shopify_customer_id,

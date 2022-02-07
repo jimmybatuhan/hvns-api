@@ -228,7 +228,7 @@ class DiscountController extends Controller
                 ShopifyAdmin::addMetafields(
                     ShopifyConstants::CUSTOMER_RESOURCE,
                     $shopify_customer_id,
-                    json_encode($active_discount_code->toArray())
+                    $active_discount_code
                 );
             } else {
                 ShopifyAdmin::updateMetafieldById(

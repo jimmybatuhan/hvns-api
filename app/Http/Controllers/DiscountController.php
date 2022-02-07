@@ -224,7 +224,7 @@ class DiscountController extends Controller
                 "value" => $discount_name,
             ]);
 
-            if ($active_discount_code_id) {
+            if (!$active_discount_code_id) {
                 ShopifyAdmin::addMetafields(
                     ShopifyConstants::CUSTOMER_RESOURCE,
                     $shopify_customer_id,

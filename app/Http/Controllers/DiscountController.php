@@ -210,7 +210,10 @@ class DiscountController extends Controller
             $metafields = ShopifyAdmin::fetchMetafield($shopify_customer_id, ShopifyConstants::CUSTOMER_RESOURCE);
             $active_discount_code_id = $metafields->ActiveDiscountCodeId();
             $current_active_discount = collect($metafields->ActiveDiscountCode());
-            $discount = ShopifyAdmin::getDiscountCode($current_active_discount["value"])->collect();
+
+            throw new Exception(json_encode(["a" => $current_active_discount]));
+
+            $discount = ShopifyAdmin::getDiscountCode($current_active_discount)->collect();
             $price_rule_id = $discount["discount_code"]["price_rule_id"];
             $discount_id = $discount["discount_code"]["id"];
 

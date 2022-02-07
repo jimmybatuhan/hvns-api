@@ -91,7 +91,7 @@ class DiscountController extends Controller
 
             // check for existing discount name in customer metafield if has active discount codes, delete codes
             // store the new discount code
-            $this->resetActiveDiscountCodes();
+            $this->resetActiveDiscountCodes($shopify_customer_id, $discount_name);
         }
 
         $total_discount = strval($total_discount * -1);

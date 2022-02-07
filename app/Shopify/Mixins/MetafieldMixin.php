@@ -133,7 +133,7 @@ class MetafieldMixin
         };
     }
 
-    public function ActiveDiscountCodes(): Closure
+    public function ActiveDiscountCode(): Closure
     {
         return function () {
             return @json_decode($this->metafield(

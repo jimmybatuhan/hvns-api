@@ -209,9 +209,6 @@ class DiscountController extends Controller
         try {
             $metafields = ShopifyAdmin::fetchMetafield($shopify_customer_id, ShopifyConstants::CUSTOMER_RESOURCE);
             $active_discount_code_id = $metafields->ActiveDiscountCodeId();
-
-            throw new Exception($active_discount_code_id);
-
             $active_discount_code = collect();
             $active_discount_code->push([
                 "key" => "last_active_discount",
@@ -220,6 +217,7 @@ class DiscountController extends Controller
             ]);
 
             if (empty($active_discount_code_id)) {
+                throw new Exception("aaa");
                 ShopifyAdmin::addMetafields(
                     ShopifyConstants::CUSTOMER_RESOURCE,
                     $shopify_customer_id,

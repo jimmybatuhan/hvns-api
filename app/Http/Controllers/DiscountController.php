@@ -209,6 +209,9 @@ class DiscountController extends Controller
         try {
             $metafields = ShopifyAdmin::fetchMetafield($shopify_customer_id, ShopifyConstants::CUSTOMER_RESOURCE);
             $active_discount_code_id = $metafields->ActiveDiscountCodeId();
+
+            dd($active_discount_code_id);
+
             $active_discount_code = collect();
             $active_discount_code->push([
                 "key" => "last_active_discount",

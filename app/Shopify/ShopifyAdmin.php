@@ -169,7 +169,7 @@ class ShopifyAdmin
                     $customer_id,
                 ],
                 'customer_selection' => 'prerequisite',
-                // 'starts_at' => Carbon::now()->toISOString(),
+                'starts_at' => Carbon::now()->toISOString(),
                 // 'ends_at' => Carbon::now()->addMinutes(5)->toISOString(),
             ],
         ]);

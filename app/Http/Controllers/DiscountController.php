@@ -230,11 +230,7 @@ class DiscountController extends Controller
                     $active_discount_code
                 );
             } else {
-                ShopifyAdmin::updateMetafieldById(
-                    $active_discount_code_id["id"],
-                    $discount_name,
-                    ShopifyConstants::METAFIELD_VALUE_TYPE_JSON_STRING
-                );
+                ShopifyAdmin::updateMetafieldById($active_discount_code_id["id"], $discount_name);
             }
         } catch (Exception $e) {
             report($e);

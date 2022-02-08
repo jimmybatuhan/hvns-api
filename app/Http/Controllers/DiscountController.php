@@ -11,6 +11,7 @@ use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 
 class DiscountController extends Controller
 {
@@ -38,6 +39,15 @@ class DiscountController extends Controller
 
             $total_points_used = 0;
             $collection_response = ShopifyAdmin::getCollectionProducts($exclusive_collection_id);
+
+            Log::critical("log", [
+                'has_used_claim_500' => $has_used_claim_500,
+                'CLAIM_500' => env("CLAIM_500"),
+                'request' => $request->claim_500,
+                'available_customer_points' => $available_customer_points,
+                'item_limit' => config('shopify-app.claim_promo_item_limit'),
+                'collection_response' => $collection_response
+            ]);
 
             if ($collection_response->failed()) {
                 return response()->json([

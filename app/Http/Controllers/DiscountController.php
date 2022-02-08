@@ -88,6 +88,10 @@ class DiscountController extends Controller
                 $total_discount = 0;
             }
 
+            Log::critical("log", [
+                'total_points_used' => $total_points_used,
+            ]);
+
             $timestamp = Carbon::now()->timestamp;
             $discount_name .= "-{$timestamp}-{$total_points_used}";
 

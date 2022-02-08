@@ -230,8 +230,12 @@ class DiscountController extends Controller
                 $discount = ShopifyAdmin::getDiscountCode($current_active_discount)->collect();
                 $price_rule_id = $discount["discount_code"]["price_rule_id"];
                 $discount_id = $discount["discount_code"]["id"];
+                $usage_count = $discount["discount_code"]["usage_count"];
 
-                ShopifyAdmin::deleteDiscountCode($discount_id, $price_rule_id);
+                if ($usage_count == 0) {
+                    ShopifyAdmin::deleteDiscountCode($discount_id, $price_rule_id);
+                }
+                
                 ShopifyAdmin::updateMetafieldById($active_discount_code_id["id"], $discount_name);
             }
         } catch (Exception $e) {

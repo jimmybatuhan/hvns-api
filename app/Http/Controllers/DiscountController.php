@@ -79,6 +79,10 @@ class DiscountController extends Controller
                 }
             });
 
+            Log::critical("log", [
+                'total_points_used' => $total_points_used,
+            ]);
+
             if ($total_points_used < $available_customer_points) {
                 $total_points_used = 0;
                 $total_discount = 0;

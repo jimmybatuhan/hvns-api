@@ -46,6 +46,7 @@ class DiscountController extends Controller
                 'request' => $request->claim_500,
                 'available_customer_points' => $available_customer_points,
                 'item_limit' => config('shopify-app.claim_promo_item_limit'),
+                'item_points' => config('shopify-app.claim_promo_points'),
                 'collection_response' => $collection_response
             ]);
 

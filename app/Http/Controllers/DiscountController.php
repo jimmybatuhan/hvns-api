@@ -75,6 +75,8 @@ class DiscountController extends Controller
 
             $timestamp = Carbon::now()->timestamp;
             $discount_name .= "-{$timestamp}-{$total_points_used}";
+
+            $this->resetActiveDiscountCodes($shopify_customer_id, $discount_name);
         } else {
             $points_to_use = $request->points_to_use ?? 0;
             if ($points_to_use > ShopifyConstants::MAXIMUM_POINTS_TO_USE) {

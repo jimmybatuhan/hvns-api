@@ -40,16 +40,6 @@ class DiscountController extends Controller
             $total_points_used = 0;
             $collection_response = ShopifyAdmin::getCollectionProducts($exclusive_collection_id);
 
-            Log::critical("log", [
-                'has_used_claim_500' => $has_used_claim_500,
-                'CLAIM_500' => env("CLAIM_500"),
-                'request' => $request->claim_500,
-                'available_customer_points' => $available_customer_points,
-                'item_limit' => config('shopify-app.claim_promo_item_limit'),
-                'item_points' => config('shopify-app.claim_promo_points'),
-                'collection_response' => $collection_response
-            ]);
-
             if ($collection_response->failed()) {
                 return response()->json([
                     "success" => false,
@@ -71,7 +61,7 @@ class DiscountController extends Controller
                         if ($quantity > $remaining_item_claims) {
                             $quantity = $remaining_item_claims;
                         }
-
+                        
                         $total_discount += ($product["final_price"] / 100) * $quantity;
                         $total_points_used += $quantity * config('shopify-app.claim_promo_points');
                         $remaining_item_claims = $remaining_item_claims - $quantity;
@@ -79,19 +69,10 @@ class DiscountController extends Controller
                 }
             });
 
-            Log::critical("log", [
-                'total_points_used' => $total_points_used,
-                'test' => (float) $total_points_used < (float) $available_customer_points,
-            ]);
-
-            if ((float) $total_points_used < (float) $available_customer_points) {
+            if ((float) $total_points_used > (float) $available_customer_points) {
                 $total_points_used = 0;
                 $total_discount = 0;
             }
-
-            Log::critical("log", [
-                'total_points_used' => $total_points_used,
-            ]);
 
             $timestamp = Carbon::now()->timestamp;
             $discount_name .= "-{$timestamp}-{$total_points_used}";

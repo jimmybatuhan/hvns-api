@@ -81,6 +81,7 @@ class DiscountController extends Controller
 
             Log::critical("log", [
                 'total_points_used' => $total_points_used,
+                'test' => (float) $total_points_used < (float) $available_customer_points,
             ]);
 
             if ((float) $total_points_used < (float) $available_customer_points) {

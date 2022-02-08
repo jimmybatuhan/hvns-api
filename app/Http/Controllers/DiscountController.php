@@ -83,7 +83,7 @@ class DiscountController extends Controller
                 'total_points_used' => $total_points_used,
             ]);
 
-            if ($total_points_used < $available_customer_points) {
+            if ((float) $total_points_used < (float) $available_customer_points) {
                 $total_points_used = 0;
                 $total_discount = 0;
             }

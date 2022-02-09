@@ -227,12 +227,11 @@ class DiscountController extends Controller
                 );
             } else {
                 $current_active_discount = $metafields->ActiveDiscountCode();
-                $discount = ShopifyAdmin::getDiscountCode($current_active_discount)->collect();
-                $price_rule_id = $discount["discount_code"]["price_rule_id"];
-                $discount_id = $discount["discount_code"]["id"];
-                $usage_count = $discount["discount_code"]["usage_count"];
 
-                if ($usage_count == 0) {
+                if ($current_active_discount !== 'N/A') {
+                    $discount = ShopifyAdmin::getDiscountCode($current_active_discount)->collect();
+                    $price_rule_id = $discount["discount_code"]["price_rule_id"];
+                    $discount_id = $discount["discount_code"]["id"];
                     ShopifyAdmin::deleteDiscountCode($discount_id, $price_rule_id);
                 }
                 

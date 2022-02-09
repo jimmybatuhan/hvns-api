@@ -8,6 +8,7 @@ use App\ShopPromo\Facades\ShopPromo;
 use App\ZAP\Constants as ZAPConstants;
 use App\ZAP\Facades\ZAP;
 use Carbon\Carbon;
+use Exception;
 use Illuminate\Http\Client\Response as ClientResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,6 +17,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
+
 
 class WebhookController extends Controller
 {
@@ -65,6 +67,8 @@ class WebhookController extends Controller
 
                 // if the customer used their zap points as a discount
                 if ($zap_discount) {
+
+                    $this->resetActiveDiscountCodes($customer_id);
                     $code = explode("-", $zap_discount["code"]);
                     $points_used = $code[3] ?? 0;
 
@@ -627,5 +631,35 @@ class WebhookController extends Controller
                 'customer_id' => $customer_id,
             ]);
         }
+    }
+
+    private function resetActiveDiscountCodes(string $shopify_customer_id): bool
+    {
+        try {
+            $metafields = ShopifyAdmin::fetchMetafield($shopify_customer_id, ShopifyConstants::CUSTOMER_RESOURCE);
+            $active_discount_code_id = $metafields->ActiveDiscountCodeId();
+            $active_discount_code = collect();
+            $active_discount_code->push([
+                "key" => "last_active_discount",
+                "namespace" => ZAPConstants::MEMBER_NAMESPACE,
+                "value" => "N/A",
+            ]);
+
+            if (empty($active_discount_code_id)) {
+                ShopifyAdmin::addMetafields(
+                    ShopifyConstants::CUSTOMER_RESOURCE,
+                    $shopify_customer_id,
+                    $active_discount_code
+                );
+            } else {
+                $current_active_discount = $metafields->ActiveDiscountCode();                
+                ShopifyAdmin::updateMetafieldById($active_discount_code_id["id"], "N/A");
+            }
+        } catch (Exception $e) {
+            report($e);
+            return false;
+        }
+
+        return true;
     }
 }

@@ -22,8 +22,8 @@ class DiscountController extends Controller
         $customer_balance = $zap_response->collect();
         $total_discount = 0;
 
-        $exclusive_collection_id = env("CLAIM_500_COLLECTION_ID");
-        $has_used_claim_500 = env("CLAIM_500") && $request->claim_500;
+        $exclusive_collection_id = config('shopify-app.claim_promo_collection_id');
+        $has_used_claim_500 = config('shopify-app.claim_promo_allow') && $request->claim_500;
         $discount_code_prefix = $has_used_claim_500
             ? ShopifyConstants::USE_500_POINTS_PER_ITEM
             : ShopifyConstants::USE_POINTS_PREFIX;
@@ -53,10 +53,10 @@ class DiscountController extends Controller
             $cart_items = collect($request->items);
             $remaining_item_claims = config('shopify-app.claim_promo_item_limit');
 
-            if ($remaining_item_claims > $available_customer_points % config('shopify-app.claim_promo_points')){
-                $remaining_item_claims = $available_customer_points % config('shopify-app.claim_promo_points');
+            if ($remaining_item_claims > intdiv($available_customer_points ,config('shopify-app.claim_promo_points'))){
+                $remaining_item_claims = intdiv($available_customer_points ,config('shopify-app.claim_promo_points'));
             }
-            
+
             $cart_items->each(function (array $product) use (&$total_discount, &$total_points_used, &$remaining_item_claims, $collection_products) {
                 /** check item if eligible for claim 500 */
                 if (in_array($product["product_id"], $collection_products->toArray())) {

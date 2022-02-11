@@ -388,5 +388,7 @@ return [
 
     'claim_promo_points' => env('CLAIM_PROMO_POINTS', 500),
     'claim_promo_item_limit' => env('CLAIM_PROMO_ITEM_LIMIT', 5),
+    'claim_promo_collection_id' => env('CLAIM_500_COLLECTION_ID', 0),
+    'claim_promo_allow' => env('CLAIM_500', false),
     
 ];

@@ -174,7 +174,7 @@ class ShopifyAdmin
         ];
 
         if ($is_claim) {
-            $props['entitled_collection_ids'] = [env("CLAIM_500_COLLECTION_ID")];
+            $props['entitled_collection_ids'] = [config('shopify-app.claim_promo_collection_id')];
             $props['target_selection'] = 'entitled';
         }
 

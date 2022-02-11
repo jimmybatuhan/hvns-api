@@ -154,24 +154,32 @@ class ShopifyAdmin
         return $this->http->get($this->admin_api . "/orders/{$order_id}.json");
     }
 
-    public function createPriceRule(string $title, string $customer_id, string $amount): Response
+    public function createPriceRule(string $title, string $customer_id, string $amount, bool $is_claim = false): Response
     {
-        return $this->http->post($this->admin_api . '/price_rules.json', [
-            'price_rule' => [
-                'title' => $title,
-                'target_type' => 'line_item',
-                'target_selection' => 'all',
-                'allocation_method' => 'across',
-                'value_type' => 'fixed_amount',
-                'value' => $amount,
-                "once_per_customer" => true,
-                'prerequisite_customer_ids' => [
-                    $customer_id,
-                ],
-                'customer_selection' => 'prerequisite',
-                'starts_at' => Carbon::now()->toISOString(),
-                'ends_at' => Carbon::now()->addMinutes(5)->toISOString(),
+
+        $props = [
+            'title' => $title,
+            'target_type' => 'line_item',
+            'target_selection' => 'all',
+            'allocation_method' => 'across',
+            'value_type' => 'fixed_amount',
+            'value' => $amount,
+            "once_per_customer" => true,
+            'prerequisite_customer_ids' => [
+                $customer_id,
             ],
+            'customer_selection' => 'prerequisite',
+            'starts_at' => Carbon::now()->toISOString(),
+            'ends_at' => Carbon::now()->addMinutes(5)->toISOString(),
+        ];
+
+        if ($is_claim) {
+            $props['entitled_collection_ids'] = [env("CLAIM_500_COLLECTION_ID")];
+            $props['target_selection'] = 'entitled';
+        }
+
+        return $this->http->post($this->admin_api . '/price_rules.json', [
+            'price_rule' => $props,
         ]);
     }
 

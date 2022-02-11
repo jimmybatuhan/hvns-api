@@ -101,7 +101,8 @@ class DiscountController extends Controller
         $price_rule_response = ShopifyAdmin::createPriceRule(
             $discount_name,
             $shopify_customer_id,
-            $total_discount
+            $total_discount,
+            $has_used_claim_500
         );
 
         $new_price_rule = $price_rule_response->collect();

@@ -79,7 +79,7 @@ class DiscountController extends Controller
                 $total_discount = 0;
             }
 
-            $timestamp = Carbon::now()->timestamp;
+            $timestamp = Carbon::now()->addHours(8)->timestamp;
             $discount_name .= "-{$timestamp}-{$total_points_used}";
 
             $this->resetActiveDiscountCodes($shopify_customer_id, $discount_name);
@@ -94,7 +94,7 @@ class DiscountController extends Controller
             }
 
             $total_points_used = $total_discount;
-            $timestamp = Carbon::now()->timestamp;
+            $timestamp = Carbon::now()->addHours(8)->timestamp;
             $discount_name .= "-{$timestamp}-{$total_points_used}";
 
             // check for existing discount name in customer metafield if has active discount codes, delete codes
@@ -199,7 +199,7 @@ class DiscountController extends Controller
 
                 if ($available_customer_points >= ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED) {
 
-                    ZAP::deductPoints(ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED, $request->mobile);
+                    ZAP::deductPoints(ShopifyConstants::ELIGIBLE_500_POINTS_NEEDED, $request->mobile, "CLAIM 500 DEDUCTION");
                     ShopifyAdmin::addTagsToCustomer($shopify_customer_id, ShopifyConstants::ELIGIBLE_500_TAG);
                     $response['success'] = true;
                 } else {

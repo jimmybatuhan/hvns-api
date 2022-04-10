@@ -72,7 +72,7 @@ class WebhookController extends Controller
                     $code = explode("-", $zap_discount["code"]);
                     $points_used = $code[3] ?? 0;
 
-                    $use_points_response = ZAP::deductPoints($points_used, $mobile);
+                    $use_points_response = ZAP::deductPoints($points_used, $mobile, "DISCOUNT CODE DEDUCTION " . $order_id);
 
                     if ($use_points_response->ok()) {
                         $use_points_response_body = $use_points_response->collect();
@@ -83,7 +83,7 @@ class WebhookController extends Controller
                             ZAPConstants::TRANSACTION_REFERENCE_KEY => $zap_transaction_reference_no,
                             ZAPConstants::TRANSACTION_POINTS_KEY => $points_used,
                             ZAPConstants::TRANSACTION_STATUS_KEY => ZAPConstants::USE_POINT_STATUS,
-                            'fulfilled_at' => Carbon::now()->toIso8601String(),
+                            'fulfilled_at' => Carbon::now()->addHours(8)->toIso8601String(),
                         ];
 
                         // Add this new transaction to the collection
@@ -419,7 +419,7 @@ class WebhookController extends Controller
                 // if the customer used their zap points as a discount, if order is cancelled, we will return the points
                 if ($zap_discount && !$has_some_fulfilled) {
                     $points_used = $zap_discount['amount'];
-                    $use_points_response = ZAP::addPoints($points_used, $mobile);
+                    $use_points_response = ZAP::addPoints($points_used, $mobile, $order_id);
 
                     if ($use_points_response->ok()) {
                         $use_points_response_body = $use_points_response->collect();
@@ -428,7 +428,7 @@ class WebhookController extends Controller
                             ZAPConstants::TRANSACTION_REFERENCE_KEY => $zap_transaction_reference_no,
                             ZAPConstants::TRANSACTION_POINTS_KEY => $points_used,
                             ZAPConstants::TRANSACTION_STATUS_KEY => ZAPConstants::RETURNED_POINT_STATUS,
-                            'fulfilled_at' => Carbon::now()->toIso8601String(),
+                            'fulfilled_at' => Carbon::now()->addHours(8)->toIso8601String(),
                         ];
 
                         // Add this new transaction to the collection
@@ -539,7 +539,7 @@ class WebhookController extends Controller
         $mobile = substr($customer['phone'], 1);
 
         $transactions = collect();
-        $add_points_request = ZAP::addPoints($amount, $mobile);
+        $add_points_request = ZAP::addPoints($amount, $mobile, $order_id);
         $order_metafields = ShopifyAdmin::fetchMetafield($order_id, ShopifyConstants::ORDER_RESOURCE);
         $transactions_metafield_id = null;
         $order_transaction_list = $order_metafields->ZAPTransactions();
@@ -557,7 +557,7 @@ class WebhookController extends Controller
                 ZAPConstants::TRANSACTION_REFERENCE_KEY => $zap_transaction_reference_no,
                 ZAPConstants::TRANSACTION_POINTS_KEY => $amount,
                 ZAPConstants::TRANSACTION_STATUS_KEY => $status,
-                'fulfilled_at' => Carbon::now()->toIso8601String(),
+                'fulfilled_at' => Carbon::now()->addHours(8)->toIso8601String(),
             ];
 
             // Add this new transaction to the collection
@@ -599,7 +599,7 @@ class WebhookController extends Controller
             $transactions = collect(json_decode($order_transaction_list[ShopifyConstants::METAFIELD_INDEX_VALUE], true));
         }
 
-        $deduct_points_request = ZAP::deductPoints($amount, $mobile);
+        $deduct_points_request = ZAP::deductPoints($amount, $mobile, $order_id);
 
         if ($deduct_points_request->ok()) {
             $deduct_points_response_body = $deduct_points_request->collect();
@@ -609,7 +609,7 @@ class WebhookController extends Controller
                 ZAPConstants::TRANSACTION_REFERENCE_KEY => $zap_transaction_reference_no,
                 ZAPConstants::TRANSACTION_POINTS_KEY => $amount,
                 ZAPConstants::TRANSACTION_STATUS_KEY => ZAPConstants::VOID_POINT_STATUS,
-                'deducted_at' => Carbon::now()->toIso8601String(),
+                'deducted_at' => Carbon::now()->addHours(8)->toIso8601String(),
             ];
 
             // Add this new transaction to the collection
